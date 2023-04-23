@@ -50,10 +50,10 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
-    username = models.CharField(max_length=100, blank=True)
+    username = models.CharField(max_length=100, null=True, blank=True)
     email = models.EmailField(_('email address'), unique=True)
-    patronymic = models.CharField(max_length=100, verbose_name='Отчество', blank=True)
-    image = models.ImageField(upload_to=upload_to, blank=True, verbose_name='Фото')
+    patronymic = models.CharField(max_length=100, verbose_name='Отчество', null=True, blank=True)
+    image = models.ImageField(upload_to=upload_to, null=True, blank=True, verbose_name='Фото')
 
     objects = UserManager()
 
@@ -68,7 +68,6 @@ class User(AbstractUser):
 
     def set_password(self, raw_password):
         self.password = make_password(raw_password)
-        # self.unhashed_password = raw_password  # промежуточно сохраняет пароль и в тоже время хэширует его
         self._password = raw_password
 
     class Meta:
@@ -87,14 +86,13 @@ class UserInfo(models.Model):
         ('END', 'окончил')
     )
     id_user = models.OneToOneField(settings.AUTH_USER_MODEL, models.CASCADE, primary_key=True, verbose_name='Пользователь')
-    educational_institution = models.CharField(max_length=200, blank=True, verbose_name='Университет')
-    specialization = models.CharField(max_length=200, blank=True, verbose_name='Специальность')
-    academic_degree = models.CharField(max_length=200, blank=True, verbose_name='Академическая степень')
-    course = models.CharField(max_length=100, blank=True, verbose_name='Курс обучения', choices=COURSES)
-    telephone = models.CharField(max_length=16, blank=True, verbose_name='Телефон',
-                                 validators=[RegexValidator(regex=r"^\+?1?\d{8,15}$")])
-    telegram = models.URLField(blank=True, verbose_name='Ссылка на телеграмм')
-    vk = models.URLField(blank=True, verbose_name='Ссылка на VK')
+    educational_institution = models.CharField(max_length=200, null=True, blank=True, verbose_name='Университет')
+    specialization = models.CharField(max_length=200, null=True, blank=True, verbose_name='Специальность')
+    academic_degree = models.CharField(max_length=200, null=True, blank=True, verbose_name='Академическая степень')
+    course = models.CharField(max_length=100, null=True, blank=True, verbose_name='Курс обучения', choices=COURSES)
+    telephone = models.CharField(max_length=16, null=True, blank=True, verbose_name='Телефон', validators=[RegexValidator(regex=r"^\+?1?\d{8,15}$")])
+    telegram = models.URLField(null=True, blank=True, verbose_name='Ссылка на телеграмм')
+    vk = models.URLField(null=True, blank=True, verbose_name='Ссылка на VK')
 
     def __str__(self):
         return self.id_user.__str__()
@@ -132,8 +130,8 @@ class EvaluationCriteria(models.Model):
 
 class EventUts(models.Model):
     title = models.CharField(max_length=100, verbose_name='Название мероприятия')
-    start_date = models.DateField(blank=True, verbose_name='Дата начала')
-    end_date = models.DateField(blank=True, verbose_name='Дата окончания')
+    start_date = models.DateField(null=True, blank=True, verbose_name='Дата начала')
+    end_date = models.DateField(null=True, blank=True, verbose_name='Дата окончания')
 
     def __str__(self):
         return self.title
@@ -170,8 +168,8 @@ class Project(models.Model):
     title = models.CharField(max_length=100, verbose_name='Название проекта')
     id_director = models.ForeignKey(User, models.DO_NOTHING, verbose_name='Руководитель')
     evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
-    start_date = models.DateField(blank=True, verbose_name='Дата начала')
-    end_date = models.DateField(blank=True, verbose_name='Дата окончания')
+    start_date = models.DateField(null=True, blank=True, verbose_name='Дата начала')
+    end_date = models.DateField(null=True, blank=True, verbose_name='Дата окончания')
 
     def __str__(self):
         return self.title
@@ -183,13 +181,13 @@ class Project(models.Model):
 
 class Stage(models.Model):
     id_team = models.ForeignKey('Team', models.DO_NOTHING, verbose_name='Название команды')
-    evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
     title = models.CharField(max_length=100, verbose_name='Название этапа')
-    description = models.TextField(max_length=1000, verbose_name='Описание', blank=True)
+    description = models.TextField(max_length=1000, verbose_name='Описание', null=True, blank=True)
+    evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
     is_active = models.BooleanField(verbose_name='Активный этап', default=True)
-    start_date = models.DateField(verbose_name='Дата начала', blank=True)
-    end_date = models.DateField(verbose_name='Дата окончания', blank=True)
-    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки', blank=True)
+    start_date = models.DateField(verbose_name='Дата начала')
+    end_date = models.DateField(verbose_name='Дата окончания')
+    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки', null=True, blank=True)
 
     def __str__(self):
         return self.title
@@ -203,7 +201,7 @@ class Team(models.Model):
     id_project = models.ForeignKey(Project, models.DO_NOTHING, verbose_name='Название проекта')
     title = models.CharField(max_length=200, verbose_name='Название команды')
     id_tutor = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, verbose_name='Куратор')
-    team_chat = models.URLField(blank=True, verbose_name='Ссылка на чат')
+    team_chat = models.URLField(null=True, blank=True, verbose_name='Ссылка на чат')
     teg = models.CharField(max_length=200, unique=True, verbose_name='Тег')
 
     def __str__(self):

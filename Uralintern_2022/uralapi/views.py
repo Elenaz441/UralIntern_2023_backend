@@ -9,6 +9,7 @@ from rest_framework import generics
 
 from .models import *
 from .serializers import *
+from .functions_api import *
 
 
 
@@ -27,7 +28,7 @@ def get_routes(request):
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
-    serializer_class = RegisterSerializer
+    serializer_class = UserSerializer
 
 
 @api_view()
@@ -37,56 +38,47 @@ def get_user(request, id):
     return Response(user.data)
 
 
-@api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-def change_user(request, id, *args, **kwargs):
-    user = request.user
-    if user.id != int(id):
-        return Response(status=status.HTTP_403_FORBIDDEN)
-    serializer = UserSerializerUpdate(data=request.data, instance=request.user)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+class UpdateInfoView(generics.RetrieveUpdateAPIView):
+    queryset = UserInfo.objects.all()
+    serializer_class = UserInfoSerializer
 
 
 @api_view(['PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def change_user_image(request, id):
-    user = User.objects.get(id=int(id))
-    if request.user.id != int(id):
+    user = User.objects.get(pk=id)
+    if request.user.id != id:
         return Response(status=status.HTTP_403_FORBIDDEN)
     user.image = request.data['image']
     user.save()
-    serializer = UserSerializer(user)
-    return Response(serializer.data)
+    return Response(UserSerializer(user).data)
 
 
 @api_view()
 @permission_classes([IsAuthenticated])
 def get_user_teams(request, id_user):
-    intern_teams = Team.objects.filter(interns__in=[id_user])
-    tutor_teams = Team.objects.filter(id_tutor=int(id_user))
-    # director_teams = Team.objects.filter(id_tutor=int(id_user))
-    if request.user.id != int(id_user):
+    if request.user.id != id_user:
         return Response(status=status.HTTP_403_FORBIDDEN)
-    b = TeamSerializer(intern_teams, many=True)
-    c = TeamSerializer(tutor_teams, many=True)
-    return Response({'intern': b.data, 'tutor': c.data})
+    intern_teams = get_title_id(InternTeam.objects.filter(id_intern=id_user), 'intern')
+    tutor_teams = get_title_id(Team.objects.filter(id_tutor=id_user), 'tutor')
+    director_teams = get_title_id(Project.objects.filter(id_director=id_user), 'director')
+    return Response({'intern': intern_teams, 'tutor': tutor_teams, 'director': director_teams})
 
 
 @api_view()
 @permission_classes([IsAuthenticated])
 def get_team(request, id_team):
-    a = Team.objects.get(id=int(id_team))
-    b = TeamSerializer(a)
-    return Response(b.data)
+    team = TeamSerializer(Team.objects.get(pk=id_team))
+    interns = InternTeamSerializer(InternTeam.objects.filter(id_team=id_team), many=True)
+    return Response({'team': team.data, 'interns': interns.data})
 
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def change_chat(request, id_team):
-    team = Team.objects.get(id=int(id_team))
-    if team.id_tutor.id.id != request.user.id:
+    team = Team.objects.get(id=id_team)
+    if team.id_tutor.id != request.user.id:
         return Response(status=status.HTTP_403_FORBIDDEN)
     if request.data['team_chat'] and not validators.url(request.data['team_chat']):
             return Response(status=status.HTTP_400_BAD_REQUEST)

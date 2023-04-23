@@ -7,11 +7,11 @@ from rest_framework_simplejwt.views import (
 
 urlpatterns = [
     path('', get_routes),
-    path('register/', RegisterView.as_view(), name='auth_register'),
     path('token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('register/', RegisterView.as_view(), name='auth_register'),
     path('user/<int:id>', get_user),
-    path('user-change/<int:id>', change_user),
+    path('user-info/<int:pk>', UpdateInfoView.as_view()),
     path('user-change-image/<int:id>', change_user_image),
     path('get-user-teams/<int:id_user>', get_user_teams),
     path('get-team/<int:id_team>', get_team),

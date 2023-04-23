@@ -18,18 +18,15 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
 
-class RegisterSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(
-        required=True,
-        validators=[UniqueValidator(queryset=User.objects.all())]
-    )
-
+class UserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True, validators=[UniqueValidator(queryset=User.objects.all())])
     password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
+    groups = serializers.StringRelatedField(many=True)
 
     class Meta:
         model = User
-        fields = ('email', 'password', 'password2', 'first_name', 'last_name')
+        fields = ('email', 'password', 'password2', 'first_name', 'last_name', 'patronymic', 'image', 'groups')
         extra_kwargs = {
             'first_name': {'required': True},
             'last_name': {'required': True}
@@ -38,74 +35,48 @@ class RegisterSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Password fields didn't match."})
-
         return attrs
 
     def create(self, validated_data):
         user = User.objects.create(
             email=validated_data['email'],
             first_name=validated_data['first_name'],
-            last_name=validated_data['last_name']
+            last_name=validated_data['last_name'],
+            patronymic=validated_data['patronymic']
         )
-
+        user.groups.set([Group.objects.get(name='стажёр')])
         user.set_password(validated_data['password'])
         user.save()
 
         return user
 
 
-class UserSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    email = serializers.EmailField()
-    surname = serializers.CharField()
-    firstname = serializers.CharField()
-    patronymic = serializers.CharField(allow_null=True)
-    role_director = serializers.BooleanField()
-    role_tutor = serializers.BooleanField()
-    role_intern = serializers.BooleanField()
-    educational_institution = serializers.CharField(allow_null=True)
-    specialization = serializers.CharField(allow_null=True)
-    academic_degree = serializers.CharField(allow_null=True)
-    course = serializers.CharField(allow_null=True)
-                                   # validators=[MinValueValidator(1), MaxValueValidator(6)])
-    telephone = serializers.CharField(allow_null=True, validators=[RegexValidator(regex=r"^\+?1?\d{8,15}$")])
-    telegram = serializers.URLField(allow_null=True)
-    vk = serializers.URLField(allow_null=True)
-    image = serializers.ImageField(allow_null=True)
+class UserInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserInfo
+        fields = '__all__'
 
 
-class UserSerializerUpdate(serializers.Serializer):
-    educational_institution = serializers.CharField(allow_null=True)
-    specialization = serializers.CharField(allow_null=True)
-    academic_degree = serializers.CharField(allow_null=True)
-    course = serializers.IntegerField(allow_null=True)
-                                      # validators=[MinValueValidator(1), MaxValueValidator(6)])
-    telephone = serializers.CharField(allow_null=True, validators=[RegexValidator(regex=r"^\+?1?\d{8,15}$")])
-    telegram = serializers.URLField(allow_null=True)
-    vk = serializers.URLField(allow_null=True)
-
-    def update(self, instance, validated_data):
-        instance.educational_institution = validated_data.get('educational_institution', instance.educational_institution)
-        instance.specialization = validated_data.get('specialization', instance.specialization)
-        instance.academic_degree = validated_data.get('academic_degree', instance.academic_degree)
-        instance.course = validated_data.get('course', instance.course)
-        instance.telephone = validated_data.get('telephone', instance.telephone)
-        instance.telegram = validated_data.get('telegram', instance.telegram)
-        instance.vk = validated_data.get('vk', instance.vk)
-        instance.save()
-        return instance
-
-
-class InternsSerializer(serializers.Serializer):
-    id = UserSerializer()
-
-
-class TutorSerializer(serializers.Serializer):
-    id = UserSerializer()
-
-
-class DirectorSerializer(serializers.Serializer):
-    id = UserSerializer()
+# class UserSerializerUpdate(serializers.Serializer):
+#     educational_institution = serializers.CharField(allow_null=True)
+#     specialization = serializers.CharField(allow_null=True)
+#     academic_degree = serializers.CharField(allow_null=True)
+#     course = serializers.CharField(allow_null=True)
+#                                       # validators=[MinValueValidator(1), MaxValueValidator(6)])
+#     telephone = serializers.CharField(allow_null=True, validators=[RegexValidator(regex=r"^\+?1?\d{8,15}$")])
+#     telegram = serializers.URLField(allow_null=True)
+#     vk = serializers.URLField(allow_null=True)
+#
+#     def update(self, instance, validated_data):
+#         instance.educational_institution = validated_data.get('educational_institution', instance.educational_institution)
+#         instance.specialization = validated_data.get('specialization', instance.specialization)
+#         instance.academic_degree = validated_data.get('academic_degree', instance.academic_degree)
+#         instance.course = validated_data.get('course', instance.course)
+#         instance.telephone = validated_data.get('telephone', instance.telephone)
+#         instance.telegram = validated_data.get('telegram', instance.telegram)
+#         instance.vk = validated_data.get('vk', instance.vk)
+#         instance.save(self)
+#         return instance
 
 
 class EvaluationCriteriaSerializer(serializers.Serializer):
@@ -128,18 +99,31 @@ class ProjectSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     id_event = serializers.CharField()
     title = serializers.CharField()
-    id_director = DirectorSerializer()
+    id_director = serializers.CharField()
     start_date = serializers.DateField()
     end_date = serializers.DateField()
 
 
-class TeamSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    id_project = ProjectSerializer()
-    title = serializers.CharField()
-    id_tutor = TutorSerializer()
-    # interns = InternsSerializer(many=True)
-    team_chat = serializers.URLField(allow_null=True)
+class InternTeamSerializer(serializers.Serializer):
+    id_team = serializers.CharField()
+    id_intern = UserSerializer()
+    role = serializers.CharField()
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    id_project = serializers.StringRelatedField()
+    id_tutor = serializers.StringRelatedField()
+
+    class Meta:
+        model = Team
+        fields = '__all__'
+# class TeamSerializer(serializers.Serializer):
+#     id = serializers.IntegerField(read_only=True)
+#     id_project = ProjectSerializer()
+#     title = serializers.CharField()
+#     id_tutor = TutorSerializer()
+#     # interns = InternsSerializer(many=True)
+#     team_chat = serializers.URLField(allow_null=True)
 
 
 class ReportSerializer(serializers.Serializer):

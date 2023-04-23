@@ -2,14 +2,10 @@ from django.contrib import admin
 
 from .forms import *
 from .models import *
-from .functions import generate_password
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin
 from import_export.admin import ImportExportActionModelAdmin
 from import_export import resources
-
-# admin.site.unregister(Group)
-# Group._meta.db_table = 'Role'
 
 
 class UserResource(resources.ModelResource):
@@ -19,10 +15,7 @@ class UserResource(resources.ModelResource):
         fields = ('id', 'surname', 'firstname', 'patronymic', 'email', 'unhashed_password', 'role_director', 'role_tutor', 'role_intern')
 
     def before_save_instance(self, instance, using_transactions, dry_run):
-        if not instance.unhashed_password:
-            instance.set_password(generate_password())
-        else:
-            instance.set_password(instance.unhashed_password)
+        instance.set_password(instance.unhashed_password)
         instance.save()
         return instance
 
@@ -45,7 +38,7 @@ class UserAdmin(UserAdmin, ImportExportActionModelAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'last_name', 'first_name', 'patronymic', 'groups', 'password1', 'password2', 'is_random_password'),
+            'fields': ('email', 'last_name', 'first_name', 'patronymic', 'groups', 'password1', 'password2'),
         }),
     )
 
@@ -70,11 +63,6 @@ class UserInfoAdmin(admin.ModelAdmin):
     )
 
 
-# @admin.register(Group)
-# class GroupAdmin(admin.ModelAdmin):
-#     list_display = ('name', )
-
-
 @admin.register(EventUts)
 class EventUtsAdmin(admin.ModelAdmin):
     list_display = ('title', 'start_date', 'end_date')
@@ -86,7 +74,8 @@ class EventUtsAdmin(admin.ModelAdmin):
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'id_event', 'id_director', 'start_date', 'end_date')
     search_fields = ('title',)
-    list_filter = ('id_event', 'id_director', 'start_date', 'end_date')
+    list_filter = ('id_event', 'start_date', 'end_date')
+    filter_horizontal = ['evaluation_criteria', ]
 
     def render_change_form(self, request, context, *args, **kwargs):
         context['adminform'].form.fields['id_director'].queryset = User.objects.filter(groups__in=[Group.objects.get(name='руководитель').id])
@@ -118,6 +107,10 @@ class InternTeamAdmin(admin.ModelAdmin):
     list_display = ('id_team', 'id_intern', 'role')
     search_fields = ('id_team', 'id_intern', 'role')
     list_filter = ('id_team', 'role')
+
+    def render_change_form(self, request, context, *args, **kwargs):
+        context['adminform'].form.fields['id_intern'].queryset = User.objects.filter(groups__in=[Group.objects.get(name='стажёр').id])
+        return super(InternTeamAdmin, self).render_change_form(request, context, *args, **kwargs)
 
 
 @admin.register(RoleInTeam)
