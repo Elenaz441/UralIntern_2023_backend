@@ -187,7 +187,7 @@ class Stage(models.Model):
     is_active = models.BooleanField(verbose_name='Активный этап', default=True)
     start_date = models.DateField(verbose_name='Дата начала')
     end_date = models.DateField(verbose_name='Дата окончания')
-    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки', null=True, blank=True)
+    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки')
 
     def __str__(self):
         return self.title

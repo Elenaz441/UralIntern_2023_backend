@@ -57,51 +57,26 @@ class UserInfoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-# class UserSerializerUpdate(serializers.Serializer):
-#     educational_institution = serializers.CharField(allow_null=True)
-#     specialization = serializers.CharField(allow_null=True)
-#     academic_degree = serializers.CharField(allow_null=True)
-#     course = serializers.CharField(allow_null=True)
-#                                       # validators=[MinValueValidator(1), MaxValueValidator(6)])
-#     telephone = serializers.CharField(allow_null=True, validators=[RegexValidator(regex=r"^\+?1?\d{8,15}$")])
-#     telegram = serializers.URLField(allow_null=True)
-#     vk = serializers.URLField(allow_null=True)
-#
-#     def update(self, instance, validated_data):
-#         instance.educational_institution = validated_data.get('educational_institution', instance.educational_institution)
-#         instance.specialization = validated_data.get('specialization', instance.specialization)
-#         instance.academic_degree = validated_data.get('academic_degree', instance.academic_degree)
-#         instance.course = validated_data.get('course', instance.course)
-#         instance.telephone = validated_data.get('telephone', instance.telephone)
-#         instance.telegram = validated_data.get('telegram', instance.telegram)
-#         instance.vk = validated_data.get('vk', instance.vk)
-#         instance.save(self)
-#         return instance
-
-
 class EvaluationCriteriaSerializer(serializers.Serializer):
     title = serializers.CharField()
     description = serializers.CharField()
 
 
-class StageSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    id_team = serializers.CharField()
-    title = serializers.CharField()
-    description = serializers.CharField()
-    start_date = serializers.DateField()
-    end_date = serializers.DateField()
+class StageSerializer(serializers.ModelSerializer):
     evaluation_criteria = EvaluationCriteriaSerializer(many=True)
-    status = serializers.CharField()
+
+    class Meta:
+        model = Stage
+        fields = '__all__'
 
 
-class ProjectSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    id_event = serializers.CharField()
-    title = serializers.CharField()
-    id_director = serializers.CharField()
-    start_date = serializers.DateField()
-    end_date = serializers.DateField()
+# class ProjectSerializer(serializers.Serializer):
+#     id = serializers.IntegerField(read_only=True)
+#     id_event = serializers.CharField()
+#     title = serializers.CharField()
+#     id_director = serializers.CharField()
+#     start_date = serializers.DateField()
+#     end_date = serializers.DateField()
 
 
 class InternTeamSerializer(serializers.Serializer):
@@ -117,22 +92,6 @@ class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
         fields = '__all__'
-# class TeamSerializer(serializers.Serializer):
-#     id = serializers.IntegerField(read_only=True)
-#     id_project = ProjectSerializer()
-#     title = serializers.CharField()
-#     id_tutor = TutorSerializer()
-#     # interns = InternsSerializer(many=True)
-#     team_chat = serializers.URLField(allow_null=True)
-
-
-class ReportSerializer(serializers.Serializer):
-    id_appraiser = serializers.CharField()
-    id_stage = serializers.CharField()
-    id_evaluation_criteria = serializers.CharField()
-    id_intern = serializers.CharField()
-    time_voting = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S")
-    estimation = serializers.FloatField(allow_null=True, validators=[MinValueValidator(-1), MaxValueValidator(3)])
 
 
 class EstimationSerializer(serializers.ModelSerializer):
@@ -148,9 +107,4 @@ class EstimationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Estimation
-        fields = ('id_appraiser',
-                  'id_stage',
-                  'id_evaluation_criteria',
-                  'id_intern',
-                  'time_voting',
-                  'estimation',)
+        fields = '__all__'

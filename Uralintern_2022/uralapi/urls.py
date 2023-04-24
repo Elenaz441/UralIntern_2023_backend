@@ -19,8 +19,8 @@ urlpatterns = [
     path('estimate/', estimate),
     path('get-estimate/', get_estimate),
     path('get-estimations/<int:id_user>/<int:id_team>', get_estimations),
-    path('get-estimation/<int:id_user>/<int:id_team>/<int:id_stage>/<int:id_intern>', get_estimation),
+    path('get-estimation/<int:id_user>/<int:id_evaluation_criteria>/<int:id_stage>/<int:id_intern>', get_estimation),
     path('get-stages/<int:id_team>', get_stages),
-    path('get-forms/<int:id_user>', get_forms),
-    path('get-forms-for-team/<int:id_user>/<int:id_team>', get_forms_for_team)  
+    path('get-forms/<int:id_user>', get_forms), # TODO
+    path('get-forms-for-team/<int:id_user>/<int:id_team>', get_forms_for_team) # TODO
 ]

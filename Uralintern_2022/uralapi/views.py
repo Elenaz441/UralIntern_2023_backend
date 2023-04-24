@@ -102,9 +102,9 @@ def estimate(request, *args, **kwargs):
     estimation = request.data
     estimation['id_appraiser'] = request.user.id
     # пробуем получить оценку, если есть, то обновить существующую, если None, то создать новую
-    instance_estimation = Estimation.objects.select_related('id_appraiser', 'id_intern', 'id_stage', 'id_team') \
+    instance_estimation = Estimation.objects.select_related('id_appraiser', 'id_intern', 'id_stage', 'id_evaluation_criteria') \
         .filter(id_appraiser=estimation['id_appraiser'], id_intern=estimation['id_intern'],
-                id_stage=estimation['id_stage'], id_team=estimation['id_team']).first()
+                id_stage=estimation['id_stage'], id_evaluation_criteria=estimation['id_evaluation_criteria']).first()
     # операция обновления стоит дороже
     serializer = EstimationSerializer(instance_estimation, data=estimation) if instance_estimation else \
         EstimationSerializer(data=estimation)
@@ -116,10 +116,10 @@ def estimate(request, *args, **kwargs):
 
 @api_view()
 @permission_classes([IsAuthenticated])
-def get_estimation(request, id_user, id_team, id_stage, id_intern):
+def get_estimation(request, id_user, id_evaluation_criteria, id_stage, id_intern):
     if int(request.user.id) != int(id_user):
         return Response(status=status.HTTP_403_FORBIDDEN)
-    estimation = Estimation.objects.filter(id_appraiser=id_user, id_team=id_team, id_stage=id_stage, id_intern=id_intern)
+    estimation = Estimation.objects.filter(id_appraiser=id_user, id_evaluation_criteria=id_evaluation_criteria, id_stage=id_stage, id_intern=id_intern)
     if estimation:
         return Response(EstimationSerializer(estimation, many=True).data)
     else:
@@ -129,29 +129,22 @@ def get_estimation(request, id_user, id_team, id_stage, id_intern):
 @api_view()
 @permission_classes([IsAuthenticated])
 def get_estimations(request, id_user, id_team):
-    if int(request.user.id) != int(id_user) and int(request.user.id) != int(Team.objects.get(id=id_team).id_tutor.id.id):
+    if request.user.id != id_user and \
+        request.user.id != Team.objects.get(id=request.data.id_team).id_tutor.id and \
+        not InternTeam.objects.filter(id_intern=request.user.id, id_team=id_team):
         return Response(status=status.HTTP_403_FORBIDDEN)
-    self_estimations = Estimation.objects.filter(id_appraiser=id_user, id_team=id_team, id_intern=id_user)
-    self_estimation = get_report(self_estimations)
-    team_estimations = Estimation.objects.filter(~Q(id_appraiser=id_user), id_team=id_team, id_intern=id_user)
-    team_estimation = get_report(team_estimations)
-    total_estimation = team_estimations.first()
-    total_estimation.competence1 = (self_estimation.competence1 + team_estimation.competence1) / 2
-    total_estimation.competence2 = (self_estimation.competence2 + team_estimation.competence2) / 2
-    total_estimation.competence3 = (self_estimation.competence3 + team_estimation.competence3) / 2
-    total_estimation.competence4 = (self_estimation.competence4 + team_estimation.competence4) / 2
-    return Response({'total_estimation': ReportSerializer(total_estimation).data,
-                     'self_estimation': ReportSerializer(self_estimation).data,
-                     'team_estimation': ReportSerializer(team_estimation).data})
-
-def get_report(estimations):
-    estimation = estimations.first()
-    if len(estimations) != 0:
-        estimation.competence1 = sum([i.competence1 for i in estimations]) / len(estimations)
-        estimation.competence2 = sum([i.competence2 for i in estimations]) / len(estimations)
-        estimation.competence3 = sum([i.competence3 for i in estimations]) / len(estimations)
-        estimation.competence4 = sum([i.competence4 for i in estimations]) / len(estimations)
-    return estimation
+    stages = Stage.objects.filter(id_team=id_team)
+    evaluation_criteria = [get_evaluation_criteria_by_stage(stage.id) for stage in stages]
+    evaluation_criteria = [item for sublist in evaluation_criteria for item in sublist]
+    self_estimations = Estimation.objects.filter(id_appraiser=id_user, id_stage__in=list(stages), id_intern=id_user)
+    self_estimation = get_report(self_estimations, evaluation_criteria)
+    team_estimations = Estimation.objects.filter(~Q(id_appraiser=id_user), id_stage__in=list(stages), id_intern=id_user)
+    team_estimation = get_report(team_estimations, evaluation_criteria)
+    total_estimations = Estimation.objects.filter(id_stage__in=list(stages), id_intern=id_user)
+    total_estimation = get_report(total_estimations, evaluation_criteria)
+    return Response({'total_estimation': total_estimation,
+                     'self_estimation': self_estimation,
+                     'team_estimation': team_estimation})
 
 
 @api_view()
@@ -160,7 +153,9 @@ def get_stages(request, id_team):
     team = Team.objects.get(id=id_team)
     if not team:
         return Response(status=status.HTTP_404_NOT_FOUND)
-    stages = Stage.objects.filter(id_project=team.id_project.id)
+    stages = list(Stage.objects.filter(id_team=team.id).all())
+    for stage in stages:
+        stage.evaluation_criteria.set(get_evaluation_criteria_by_stage(stage.id))
     return Response(StageSerializer(stages, many=True).data)
 
 
@@ -169,10 +164,16 @@ def get_stages(request, id_team):
 def get_forms(request, id_user):
     if request.user.id != int(id_user):
         Response(status=status.HTTP_403_FORBIDDEN)
-    teams = Team.objects.filter(Q(interns__in=[id_user]) | Q(id_tutor=id_user)).distinct()
+    teams = Team.objects.filter(id_tutor=id_user)
     result = {'not estimated': 0, 'estimated': 0, 'total': 0}
     for team in teams:
-        forms = get_forms_team(id_user, team.id).data
+        forms = get_forms_team(id_user, team.id)
+        result['not estimated'] += forms['not estimated']
+        result['estimated'] += forms['estimated']
+        result['total'] += forms['total']
+    intern_team = InternTeam.objects.filter(id_intern=id_user)
+    for team in intern_team:
+        forms = get_forms_team(id_user, team.id_team)
         result['not estimated'] += forms['not estimated']
         result['estimated'] += forms['estimated']
         result['total'] += forms['total']
@@ -184,18 +185,4 @@ def get_forms(request, id_user):
 def get_forms_for_team(request, id_user, id_team):
     if request.user.id != int(id_user):
         Response(status=status.HTTP_403_FORBIDDEN)
-    return get_forms_team(id_user=id_user, id_team=id_team)
-
-
-def get_forms_team(id_user, id_team):
-    team = Team.objects.get(pk=id_team)
-    stages = Stage.objects.filter(Q(id_project=team.id_project.id) | Q(id_team=id_team))
-    filtered_stages = []
-    for stage in stages:
-        if stage.start_date and stage.end_date and stage.start_date <= datetime.date.today() <= stage.end_date:
-            filtered_stages.append(stage)
-    total_count = team.interns.count() * len(filtered_stages)
-    user_estimations = Estimation.objects.filter(id_appraiser=id_user, id_stage__in=filtered_stages, id_team=id_team)
-    return Response({'not estimated': total_count - len(user_estimations),
-                     'estimated': len(user_estimations),
-                     'total': total_count})
+    return Response(get_forms_team(id_user=id_user, id_team=id_team))
