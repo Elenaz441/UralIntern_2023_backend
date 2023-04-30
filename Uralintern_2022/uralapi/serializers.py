@@ -58,36 +58,79 @@ class UserInfoSerializer(serializers.ModelSerializer):
 
 
 class EvaluationCriteriaSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
     title = serializers.CharField()
     description = serializers.CharField()
 
 
 class StageSerializer(serializers.ModelSerializer):
     evaluation_criteria = EvaluationCriteriaSerializer(many=True)
+    def create(self, validated_data):
+        stage = Stage.objects.create(id_team=validated_data['id_team'],
+                                     title=validated_data['title'],
+                                     start_date=validated_data['start_date'],
+                                     end_date=validated_data['end_date'],
+                                     end_estimation_date=validated_data['end_estimation_date'])
+        list_criteria = []
+        for criteria in validated_data['evaluation_criteria']:
+            list_criteria.append(criteria['id'])
+        stage.evaluation_criteria.set(EvaluationCriteria.objects.filter(pk__in=list_criteria))
+        stage.save()
+        return stage
+
+    def update(self, instance, validated_data):
+        instance.title = validated_data.get('title', instance.title)
+        instance.start_date = validated_data.get('start_date', instance.start_date)
+        instance.end_date = validated_data.get('end_date', instance.end_date)
+        instance.end_estimation_date = validated_data.get('end_estimation_date', instance.end_estimation_date)
+        list_criteria = []
+        for criteria in validated_data['evaluation_criteria']:
+            list_criteria.append(criteria['id'])
+        instance.evaluation_criteria.set(EvaluationCriteria.objects.filter(pk__in=list_criteria))
+        instance.save()
+        return instance
 
     class Meta:
         model = Stage
         fields = '__all__'
 
 
-# class ProjectSerializer(serializers.Serializer):
-#     id = serializers.IntegerField(read_only=True)
-#     id_event = serializers.CharField()
-#     title = serializers.CharField()
-#     id_director = serializers.CharField()
-#     start_date = serializers.DateField()
-#     end_date = serializers.DateField()
-
-
-class InternTeamSerializer(serializers.Serializer):
-    id_team = serializers.CharField()
-    id_intern = UserSerializer()
-    role = serializers.CharField()
+class ProjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Project
+        fields = '__all__'
 
 
 class TeamSerializer(serializers.ModelSerializer):
     id_project = serializers.StringRelatedField()
     id_tutor = serializers.StringRelatedField()
+
+    def create(self, validated_data):
+        team =  Team.objects.create(id_project=Project.objects.get(pk=self.initial_data['id_project']),
+                                    title=validated_data['title'],
+                                    id_tutor=User.objects.get(pk=self.initial_data['id_tutor']),
+                                    team_chat=validated_data['team_chat'],
+                                    teg=validated_data['teg'],)
+        role = RoleInTeam.objects.filter(title='нет роли').first()
+        for intern in self.initial_data['interns']:
+            InternTeam.objects.create(id_team=team, id_intern=User.objects.get(pk=intern['id_intern']), role=role)
+        return team
+
+    def update(self, instance, validated_data):
+        instance.id_project = Project.objects.get(pk=self.initial_data['id_project'])
+        instance.title = validated_data.get('title', instance.title)
+        instance.id_tutor = User.objects.get(pk=self.initial_data['id_tutor'])
+        instance.team_chat = validated_data.get('team_chat', instance.team_chat)
+        instance.teg = validated_data.get('teg', instance.teg)
+        instance.save()
+        role = RoleInTeam.objects.filter(title='нет роли').first()
+        for intern in self.initial_data['interns']:
+            if not InternTeam.objects.filter(id_team=instance, id_intern=User.objects.get(pk=intern['id_intern'])).exists():
+                InternTeam.objects.create(id_team=instance, id_intern=User.objects.get(pk=intern['id_intern']), role=role)
+        for intern in InternTeam.objects.filter(id_team=instance):
+            if intern.id_intern.id not in [a_dict['id_intern'] for a_dict in self.initial_data['interns']]:
+                intern.delete()
+        return instance
 
     class Meta:
         model = Team
@@ -107,4 +150,16 @@ class EstimationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Estimation
+        fields = '__all__'
+
+
+class RoleInTeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RoleInTeam
+        fields = '__all__'
+
+
+class InternTeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternTeam
         fields = '__all__'

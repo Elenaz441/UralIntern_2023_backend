@@ -69,9 +69,9 @@ def get_user_teams(request, id_user):
 @api_view()
 @permission_classes([IsAuthenticated])
 def get_team(request, id_team):
-    team = TeamSerializer(Team.objects.get(pk=id_team))
-    interns = InternTeamSerializer(InternTeam.objects.filter(id_team=id_team), many=True)
-    return Response({'team': team.data, 'interns': interns.data})
+    team = TeamSerializer(Team.objects.get(pk=id_team)).data
+    team['interns'] = InternTeamSerializer(InternTeam.objects.filter(id_team=id_team), many=True).data
+    return Response(team)
 
 
 @api_view(['PUT'])
@@ -86,14 +86,6 @@ def change_chat(request, id_team):
     team.save()
     serializer = TeamSerializer(team)
     return Response(serializer.data)
-
-
-@api_view()
-@permission_classes([IsAuthenticated])
-def get_estimate(request):
-    a = Estimation.objects.all()
-    b = EstimationSerializer(a, many=True)
-    return Response(b.data)
 
 
 @api_view(['POST'])
@@ -186,3 +178,76 @@ def get_forms_for_team(request, id_user, id_team):
     if request.user.id != int(id_user):
         Response(status=status.HTTP_403_FORBIDDEN)
     return Response(get_forms_team(id_user=id_user, id_team=id_team))
+
+
+@api_view()
+@permission_classes([IsAuthenticated])
+def get_roles_in_team(request):
+    return Response(RoleInTeamSerializer(RoleInTeam.objects.all(), many=True).data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def change_role(request):
+    data = request.data
+    if data['id_intern'] != request.user.id:
+        return  Response(status=status.HTTP_403_FORBIDDEN)
+    instance_role = InternTeam.objects.filter(id_intern=data['id_intern'], id_team=data['id_team']).first()
+    if not instance_role:
+        return  Response(status=status.HTTP_403_FORBIDDEN)
+    serializer = InternTeamSerializer(instance=instance_role, data=data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+@api_view()
+@permission_classes([IsAuthenticated])
+def get_evaluation_criteria(request):
+    return Response(EvaluationCriteriaSerializer(EvaluationCriteria.objects.all(), many=True).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_stage(request):
+    serializer = StageSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def change_stage(request, id_stage):
+    instance = Stage.objects.get(pk=id_stage)
+    serializer = StageSerializer(data=request.data, instance=instance)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+@api_view()
+@permission_classes([IsAuthenticated])
+def get_project(request, id_project):
+    project = ProjectSerializer(Project.objects.get(pk=id_project)).data
+    project['teams'] = TeamSerializer(Team.objects.filter(id_project=id_project), many=True).data
+    return Response(project)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_team(request):
+    serializer = TeamSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def change_team(request, id_team):
+    instance = Team.objects.get(pk=id_team)
+    serializer = TeamSerializer(data=request.data, instance=instance)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
+    return Response(serializer.data)
