@@ -57,6 +57,12 @@ class UserInfoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class InternTeamSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InternTeam
+        fields = '__all__'
+
+
 class EvaluationCriteriaSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
@@ -66,13 +72,10 @@ class EvaluationCriteriaSerializer(serializers.Serializer):
 class StageSerializer(serializers.ModelSerializer):
     evaluation_criteria = EvaluationCriteriaSerializer(many=True)
     def create(self, validated_data):
-        stage = Stage.objects.create(id_team=validated_data['id_team'],
-                                     title=validated_data['title'],
-                                     start_date=validated_data['start_date'],
-                                     end_date=validated_data['end_date'],
-                                     end_estimation_date=validated_data['end_estimation_date'])
+        evaluation_criteria = validated_data.pop('evaluation_criteria')
+        stage = Stage.objects.create(**validated_data)
         list_criteria = []
-        for criteria in validated_data['evaluation_criteria']:
+        for criteria in evaluation_criteria:
             list_criteria.append(criteria['id'])
         stage.evaluation_criteria.set(EvaluationCriteria.objects.filter(pk__in=list_criteria))
         stage.save()
@@ -104,6 +107,11 @@ class ProjectSerializer(serializers.ModelSerializer):
 class TeamSerializer(serializers.ModelSerializer):
     id_project = serializers.StringRelatedField()
     id_tutor = serializers.StringRelatedField()
+    interns = serializers.SerializerMethodField('get_interns')
+
+    @staticmethod
+    def get_interns(team):
+        return InternTeamSerializer(InternTeam.objects.filter(id_team=team.id), many=True).data
 
     def create(self, validated_data):
         team =  Team.objects.create(id_project=Project.objects.get(pk=self.initial_data['id_project']),
@@ -156,10 +164,4 @@ class EstimationSerializer(serializers.ModelSerializer):
 class RoleInTeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = RoleInTeam
-        fields = '__all__'
-
-
-class InternTeamSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InternTeam
         fields = '__all__'

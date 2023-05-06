@@ -142,8 +142,8 @@ class EventUts(models.Model):
 
 
 class InternTeam(models.Model):
-    id_team = models.ForeignKey('Team', models.DO_NOTHING, verbose_name='Команда')
-    id_intern = models.ForeignKey(User, models.DO_NOTHING, verbose_name='Стажёр')
+    id_team = models.ForeignKey('Team', models.CASCADE, verbose_name='Команда')
+    id_intern = models.ForeignKey(User, models.CASCADE, verbose_name='Стажёр')
     role = models.ForeignKey('RoleInTeam', models.DO_NOTHING, verbose_name='Роль')
 
     class Meta:
@@ -164,7 +164,7 @@ class RoleInTeam(models.Model):
 
 
 class Project(models.Model):
-    id_event = models.ForeignKey(EventUts, models.DO_NOTHING, verbose_name='Название мероприятия')
+    id_event = models.ForeignKey(EventUts, models.CASCADE, verbose_name='Название мероприятия')
     title = models.CharField(max_length=100, verbose_name='Название проекта')
     id_director = models.ForeignKey(User, models.DO_NOTHING, verbose_name='Руководитель')
     evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
@@ -180,7 +180,7 @@ class Project(models.Model):
 
 
 class Stage(models.Model):
-    id_team = models.ForeignKey('Team', models.DO_NOTHING, verbose_name='Название команды')
+    id_team = models.ForeignKey('Team', models.CASCADE, verbose_name='Название команды')
     title = models.CharField(max_length=100, verbose_name='Название этапа')
     description = models.TextField(max_length=1000, verbose_name='Описание', null=True, blank=True)
     evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
@@ -198,7 +198,7 @@ class Stage(models.Model):
 
 
 class Team(models.Model):
-    id_project = models.ForeignKey(Project, models.DO_NOTHING, verbose_name='Название проекта')
+    id_project = models.ForeignKey(Project, models.CASCADE, verbose_name='Название проекта')
     title = models.CharField(max_length=200, verbose_name='Название команды')
     id_tutor = models.ForeignKey(settings.AUTH_USER_MODEL, models.DO_NOTHING, verbose_name='Куратор')
     team_chat = models.URLField(null=True, blank=True, verbose_name='Ссылка на чат')

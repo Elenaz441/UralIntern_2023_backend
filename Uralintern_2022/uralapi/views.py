@@ -4,13 +4,13 @@ from django.db.models import Q
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework import generics
+from rest_framework import generics, mixins
 
 from .models import *
 from .serializers import *
 from .functions_api import *
-
 
 
 class MyTokenObtainPairView(TokenObtainPairView):
@@ -34,8 +34,18 @@ class RegisterView(generics.CreateAPIView):
 @api_view()
 @permission_classes([IsAuthenticated])
 def get_user(request, id):
-    user = UserSerializer(User.objects.get(id=int(id)))
-    return Response(user.data)
+    return Response(UserSerializer(User.objects.get(pk=id)).data)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def change_user_image(request, id):
+    if request.user.id != id:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    user = User.objects.get(pk=id)
+    user.image = request.data['image']
+    user.save()
+    return Response(UserSerializer(user).data)
 
 
 @permission_classes([IsAuthenticated])
@@ -44,48 +54,68 @@ class UpdateInfoView(generics.RetrieveUpdateAPIView):
     serializer_class = UserInfoSerializer
 
 
-@api_view(['PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
-def change_user_image(request, id):
-    user = User.objects.get(pk=id)
-    if request.user.id != id:
-        return Response(status=status.HTTP_403_FORBIDDEN)
-    user.image = request.data['image']
-    user.save()
-    return Response(UserSerializer(user).data)
-
-
 @api_view()
 @permission_classes([IsAuthenticated])
-def get_user_teams(request, id_user):
-    if request.user.id != id_user:
-        return Response(status=status.HTTP_403_FORBIDDEN)
-    intern_teams = get_title_id(InternTeam.objects.filter(id_intern=id_user), 'intern')
-    tutor_teams = get_title_id(Team.objects.filter(id_tutor=id_user), 'tutor')
-    director_teams = get_title_id(Project.objects.filter(id_director=id_user), 'director')
+def get_user_teams(request):
+    intern_teams = get_title_id(InternTeam.objects.filter(id_intern=request.user.id), 'intern')
+    tutor_teams = get_title_id(Team.objects.filter(id_tutor=request.user.id), 'tutor')
+    director_teams = get_title_id(Project.objects.filter(id_director=request.user.id), 'director')
     return Response({'intern': intern_teams, 'tutor': tutor_teams, 'director': director_teams})
 
 
-@api_view()
 @permission_classes([IsAuthenticated])
-def get_team(request, id_team):
-    team = TeamSerializer(Team.objects.get(pk=id_team)).data
-    team['interns'] = InternTeamSerializer(InternTeam.objects.filter(id_team=id_team), many=True).data
-    return Response(team)
+class TeamView(mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, GenericViewSet):
+    queryset = Team.objects.all()
+    serializer_class = TeamSerializer
+
+
+@permission_classes([IsAuthenticated])
+class StageView(mixins.CreateModelMixin, mixins.RetrieveModelMixin,
+                   mixins.UpdateModelMixin, mixins.ListModelMixin, GenericViewSet):
+    queryset = Stage.objects.all()
+    serializer_class = StageSerializer
+
+    def get_queryset(self):
+        id_team = self.request.query_params.get('id_team')
+        queryset = Stage.objects.filter(is_active=True)
+        if id_team:
+            queryset = queryset.filter(id_team=int(id_team))
+        return queryset
+
+
+@permission_classes([IsAuthenticated])
+class CriteriaView(generics.ListAPIView):
+    queryset = EvaluationCriteria.objects.all()
+    serializer_class = EvaluationCriteriaSerializer
+
+
+@permission_classes([IsAuthenticated])
+class RolesView(generics.ListAPIView):
+    queryset = RoleInTeam.objects.all()
+    serializer_class = RoleInTeamSerializer
 
 
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
-def change_chat(request, id_team):
-    team = Team.objects.get(id=id_team)
-    if team.id_tutor.id != request.user.id:
-        return Response(status=status.HTTP_403_FORBIDDEN)
-    if request.data['team_chat'] and not validators.url(request.data['team_chat']):
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-    team.team_chat = request.data['team_chat']
-    team.save()
-    serializer = TeamSerializer(team)
+def change_role(request):
+    data = request.data
+    if data['id_intern'] != request.user.id:
+        return  Response(status=status.HTTP_403_FORBIDDEN)
+    instance_role = InternTeam.objects.filter(id_intern=data['id_intern'], id_team=data['id_team']).first()
+    if not instance_role:
+        return  Response(status=status.HTTP_403_FORBIDDEN)
+    serializer = InternTeamSerializer(instance=instance_role, data=data)
+    serializer.is_valid(raise_exception=True)
+    serializer.save()
     return Response(serializer.data)
+
+
+@api_view()
+@permission_classes([IsAuthenticated])
+def get_project(request, id_project):
+    project = ProjectSerializer(Project.objects.get(pk=id_project)).data
+    project['teams'] = TeamSerializer(Team.objects.filter(id_project=id_project), many=True).data
+    return Response(project)
 
 
 @api_view(['POST'])
@@ -126,8 +156,7 @@ def get_estimations(request, id_user, id_team):
         not InternTeam.objects.filter(id_intern=request.user.id, id_team=id_team):
         return Response(status=status.HTTP_403_FORBIDDEN)
     stages = Stage.objects.filter(id_team=id_team)
-    evaluation_criteria = [get_evaluation_criteria_by_stage(stage.id) for stage in stages]
-    evaluation_criteria = [item for sublist in evaluation_criteria for item in sublist]
+    evaluation_criteria = list(set([get_evaluation_criteria_by_stage(stage.id) for stage in stages]))
     self_estimations = Estimation.objects.filter(id_appraiser=id_user, id_stage__in=list(stages), id_intern=id_user)
     self_estimation = get_report(self_estimations, evaluation_criteria)
     team_estimations = Estimation.objects.filter(~Q(id_appraiser=id_user), id_stage__in=list(stages), id_intern=id_user)
@@ -137,18 +166,6 @@ def get_estimations(request, id_user, id_team):
     return Response({'total_estimation': total_estimation,
                      'self_estimation': self_estimation,
                      'team_estimation': team_estimation})
-
-
-@api_view()
-@permission_classes([IsAuthenticated])
-def get_stages(request, id_team):
-    team = Team.objects.get(id=id_team)
-    if not team:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-    stages = list(Stage.objects.filter(id_team=team.id).all())
-    for stage in stages:
-        stage.evaluation_criteria.set(get_evaluation_criteria_by_stage(stage.id))
-    return Response(StageSerializer(stages, many=True).data)
 
 
 @api_view()
@@ -182,72 +199,10 @@ def get_forms_for_team(request, id_user, id_team):
 
 @api_view()
 @permission_classes([IsAuthenticated])
-def get_roles_in_team(request):
-    return Response(RoleInTeamSerializer(RoleInTeam.objects.all(), many=True).data)
-
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def change_role(request):
-    data = request.data
-    if data['id_intern'] != request.user.id:
-        return  Response(status=status.HTTP_403_FORBIDDEN)
-    instance_role = InternTeam.objects.filter(id_intern=data['id_intern'], id_team=data['id_team']).first()
-    if not instance_role:
-        return  Response(status=status.HTTP_403_FORBIDDEN)
-    serializer = InternTeamSerializer(instance=instance_role, data=data)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
-
-
-@api_view()
-@permission_classes([IsAuthenticated])
-def get_evaluation_criteria(request):
-    return Response(EvaluationCriteriaSerializer(EvaluationCriteria.objects.all(), many=True).data)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_stage(request):
-    serializer = StageSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
-
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def change_stage(request, id_stage):
-    instance = Stage.objects.get(pk=id_stage)
-    serializer = StageSerializer(data=request.data, instance=instance)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
-
-
-@api_view()
-@permission_classes([IsAuthenticated])
-def get_project(request, id_project):
-    project = ProjectSerializer(Project.objects.get(pk=id_project)).data
-    project['teams'] = TeamSerializer(Team.objects.filter(id_project=id_project), many=True).data
-    return Response(project)
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def create_team(request):
-    serializer = TeamSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
-
-
-@api_view(['PUT'])
-@permission_classes([IsAuthenticated])
-def change_team(request, id_team):
-    instance = Team.objects.get(pk=id_team)
-    serializer = TeamSerializer(data=request.data, instance=instance)
-    serializer.is_valid(raise_exception=True)
-    serializer.save()
-    return Response(serializer.data)
+def get_interns_tutors(request):
+    if not User.objects.get(pk=request.user.id).groups.filter(name='руководитель'):
+        Response(status=status.HTTP_403_FORBIDDEN)
+    tutors = User.objects.filter(groups__in=[Group.objects.get(name='куратор').id])
+    interns = User.objects.filter(groups__in=[Group.objects.get(name='стажёр').id])
+    return Response({'tutors': UserSerializer(tutors, many=True).data,
+                     'interns': UserSerializer(interns, many=True).data})
