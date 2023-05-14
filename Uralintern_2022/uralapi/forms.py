@@ -1,11 +1,13 @@
 from django.core.exceptions import ValidationError
 
+from .functions import generate_password
 from .models import *
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 
 
 class MyUserCreationForm(UserCreationForm):
+    is_random_password = forms.BooleanField(label='Случайный пароль', required=False, initial=True)
 
     password1 = forms.CharField(label='Пароль', widget=forms.PasswordInput, required=False)
     password2 = forms.CharField(label='Подтверждение пароля', widget=forms.PasswordInput, required=False)
@@ -23,7 +25,11 @@ class MyUserCreationForm(UserCreationForm):
 
     def save(self, commit=True):
         user = super(MyUserCreationForm, self).save(commit=False)
-        user.set_password(self.cleaned_data['password1'])
+        # Если is_random_password выбран, то создать случайный пароль
+        if self.cleaned_data['is_random_password']:
+            user.set_password(generate_password())
+        else:
+            user.set_password(self.cleaned_data['password1'])
         if commit:
             user.save()
         return user

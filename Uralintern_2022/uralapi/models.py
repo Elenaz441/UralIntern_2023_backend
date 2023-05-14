@@ -1,26 +1,16 @@
 import os
+
 from django.db import models, connection
 from django.contrib.auth.models import AbstractUser, Group
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
-from django.db.models.signals import post_save, post_delete, pre_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from .functions import upload_to
 from django.conf import settings
-
-
-# class Role(Group):
-#     # title = models.CharField(max_length=100, verbose_name='Название')
-#     teg = models.CharField(max_length=100, verbose_name='Тег роли', unique=True)
-#
-#     def __str__(self):
-#         return self.name
-#
-#     class Meta:
-#         verbose_name = 'Роль'
-#         verbose_name_plural = 'Роли'
+from django.core.mail import send_mail
 
 
 class UserManager(BaseUserManager):
@@ -213,12 +203,24 @@ class Team(models.Model):
 
 
 @receiver(pre_save, sender=User)
-def pre_save_image(sender, instance, *args, **kwargs):
-    """ instance old image file will delete from os """
+def pre_save_user(sender, instance, *args, **kwargs):
+    """ instance old image file will delete from os and send email"""
     ext = str(instance.image).split('.')[-1]
     old_img = os.path.join(settings.BASE_DIR, f'media/photos/user{instance.id}.{ext}')
     if os.path.exists(old_img) and str(instance.image) != f'photos/user{instance.id}.{ext}':
         os.remove(old_img)
+    if (instance._password):
+        send_mail(
+            'Личный кабинет стажёра Uralintern',
+            f"Привет! Вы были зарегестрированы или выши данные были изменены." \
+            f"\nВот ваши логин и пароль для входа в личный кабинет для оценки по стажёрским компетециям." \
+                          f"\nЛогин -  {instance.email}" \
+                          f"\nПароль - {instance._password}" \
+                          f"\nПожалуйста, сохраните данные для входа!" \
+                          f"\nОценки можно давать через веб-приложение",
+            settings.EMAIL_HOST_USER,
+            [f'{instance.email}'],
+        )
 
 
 @receiver(post_save, sender=User)

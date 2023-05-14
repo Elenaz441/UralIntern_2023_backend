@@ -5,19 +5,22 @@ from .models import *
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin
 from import_export.admin import ImportExportActionModelAdmin
-from import_export import resources
+from import_export import resources, fields, widgets
 
 
 class UserResource(resources.ModelResource):
     class Meta:
-        # TODO refactor import-export
         model = User
-        fields = ('id', 'surname', 'firstname', 'patronymic', 'email', 'unhashed_password', 'role_director', 'role_tutor', 'role_intern')
+        fields = ('id', 'email', 'last_name', 'first_name', 'patronymic', 'password', 'groups')
+        widgets = {'groups': {'field': 'name'}}
 
-    def before_save_instance(self, instance, using_transactions, dry_run):
-        instance.set_password(instance.unhashed_password)
-        instance.save()
-        return instance
+    # def before_save_instance(self, instance, using_transactions, dry_run):
+    #     if not instance.password:
+    #         instance.set_password(generate_password())
+    #     else:
+    #         instance.set_password(instance.password)
+    #     instance.save()
+    #     return instance
 
 
 @admin.register(User)
@@ -38,7 +41,7 @@ class UserAdmin(UserAdmin, ImportExportActionModelAdmin):
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'last_name', 'first_name', 'patronymic', 'groups', 'password1', 'password2'),
+            'fields': ('email', 'last_name', 'first_name', 'patronymic', 'groups', 'password1', 'password2', 'is_random_password'),
         }),
     )
 
@@ -86,8 +89,8 @@ class TeamResource(resources.ModelResource):
 
     class Meta:
         model = Team
-        fields = ('id', 'id_project', 'title', 'id_tutor', 'interns')
-        widgets = {'interns': {'field': 'id'}}
+        fields = ('id', 'id_project', 'title', 'id_tutor', 'teg')
+        widgets = {'id_project': {'field': 'title'}, 'id_tutor': {'field': 'last_name'}}
 
 
 @admin.register(Team)
