@@ -156,7 +156,9 @@ def get_estimations(request, id_user, id_team):
         not InternTeam.objects.filter(id_intern=request.user.id, id_team=id_team):
         return Response(status=status.HTTP_403_FORBIDDEN)
     stages = Stage.objects.filter(id_team=id_team)
-    evaluation_criteria = list(set([get_evaluation_criteria_by_stage(stage.id) for stage in stages]))
+    evaluation_criteria = [get_evaluation_criteria_by_stage(stage.id) for stage in stages]
+    evaluation_criteria = list(set([item for sublist in evaluation_criteria for item in sublist]))
+    # evaluation_criteria = list(set([get_evaluation_criteria_by_stage(stage.id) for stage in stages]))
     self_estimations = Estimation.objects.filter(id_appraiser=id_user, id_stage__in=list(stages), id_intern=id_user)
     self_estimation = get_report(self_estimations, evaluation_criteria)
     team_estimations = Estimation.objects.filter(~Q(id_appraiser=id_user), id_stage__in=list(stages), id_intern=id_user)
