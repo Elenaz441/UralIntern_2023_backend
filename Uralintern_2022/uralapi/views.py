@@ -152,7 +152,7 @@ def get_estimation(request, id_user, id_evaluation_criteria, id_stage, id_intern
 @permission_classes([IsAuthenticated])
 def get_estimations(request, id_user, id_team):
     if request.user.id != id_user and \
-        request.user.id != Team.objects.get(id=request.data.id_team).id_tutor.id and \
+        request.user.id != Team.objects.get(id=id_team).id_tutor.id and \
         not InternTeam.objects.filter(id_intern=request.user.id, id_team=id_team):
         return Response(status=status.HTTP_403_FORBIDDEN)
     stages = Stage.objects.filter(id_team=id_team)
