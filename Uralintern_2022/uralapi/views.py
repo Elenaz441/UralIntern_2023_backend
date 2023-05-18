@@ -64,9 +64,17 @@ def get_user_teams(request):
 
 
 @permission_classes([IsAuthenticated])
-class TeamView(mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.UpdateModelMixin, GenericViewSet):
+class TeamView(mixins.ListModelMixin, mixins.RetrieveModelMixin,
+               mixins.CreateModelMixin, mixins.UpdateModelMixin, GenericViewSet):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
+
+    def get_queryset(self):
+        id_project = self.request.query_params.get('id_project')
+        queryset = Team.objects.all()
+        if id_project:
+            queryset = queryset.filter(id_project=int(id_project))
+        return queryset
 
 
 @permission_classes([IsAuthenticated])
