@@ -138,10 +138,18 @@ def estimate(request, *args, **kwargs):
 
 @api_view()
 @permission_classes([IsAuthenticated])
-def get_estimation(request, id_user, id_evaluation_criteria, id_stage, id_intern):
-    if int(request.user.id) != int(id_user):
+def get_estimation(request, *args, **kwargs):
+    if not (request.query_params.get('id_user') and
+            request.query_params.get('id_evaluation_criteria') and
+            request.query_params.get('id_stage') and
+            request.query_params.get('id_intern')):
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+    if int(request.user.id) != int(request.query_params.get('id_user')):
         return Response(status=status.HTTP_403_FORBIDDEN)
-    estimation = Estimation.objects.filter(id_appraiser=id_user, id_evaluation_criteria=id_evaluation_criteria, id_stage=id_stage, id_intern=id_intern)
+    estimation = Estimation.objects.filter(id_appraiser=int(request.query_params.get('id_user')),
+                                           id_evaluation_criteria=int(request.query_params.get('id_evaluation_criteria')),
+                                           id_stage=int(request.query_params.get('id_stage')),
+                                           id_intern=int(request.query_params.get('id_intern')))
     if estimation:
         return Response(EstimationSerializer(estimation, many=True).data)
     else:
@@ -158,7 +166,6 @@ def get_estimations(request, id_user, id_team):
     stages = Stage.objects.filter(id_team=id_team)
     evaluation_criteria = [get_evaluation_criteria_by_stage(stage.id) for stage in stages]
     evaluation_criteria = list(set([item for sublist in evaluation_criteria for item in sublist]))
-    # evaluation_criteria = list(set([get_evaluation_criteria_by_stage(stage.id) for stage in stages]))
     self_estimations = Estimation.objects.filter(id_appraiser=id_user, id_stage__in=list(stages), id_intern=id_user)
     self_estimation = get_report(self_estimations, evaluation_criteria)
     team_estimations = Estimation.objects.filter(~Q(id_appraiser=id_user), id_stage__in=list(stages), id_intern=id_user)

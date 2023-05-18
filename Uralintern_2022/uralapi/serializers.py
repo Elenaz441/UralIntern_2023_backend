@@ -105,8 +105,8 @@ class ProjectSerializer(serializers.ModelSerializer):
 
 
 class TeamSerializer(serializers.ModelSerializer):
-    id_project = serializers.StringRelatedField()
-    id_tutor = serializers.StringRelatedField()
+    id_project = serializers.PrimaryKeyRelatedField(queryset = Project.objects.all())
+    id_tutor = serializers.PrimaryKeyRelatedField(queryset = User.objects.all())
     interns = serializers.SerializerMethodField('get_interns')
 
     @staticmethod
@@ -114,9 +114,9 @@ class TeamSerializer(serializers.ModelSerializer):
         return InternTeamSerializer(InternTeam.objects.filter(id_team=team.id), many=True).data
 
     def create(self, validated_data):
-        team =  Team.objects.create(id_project=Project.objects.get(pk=self.initial_data['id_project']),
+        team =  Team.objects.create(id_project=validated_data['id_project'],
                                     title=validated_data['title'],
-                                    id_tutor=User.objects.get(pk=self.initial_data['id_tutor']),
+                                    id_tutor=validated_data['id_tutor'],
                                     team_chat=validated_data['team_chat'],
                                     teg=validated_data['teg'],)
         role = RoleInTeam.objects.filter(title='нет роли').first()
