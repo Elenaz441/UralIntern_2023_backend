@@ -71,7 +71,8 @@ class TeamView(mixins.RetrieveModelMixin, mixins.CreateModelMixin, mixins.Update
 
 @permission_classes([IsAuthenticated])
 class StageView(mixins.CreateModelMixin, mixins.RetrieveModelMixin,
-                   mixins.UpdateModelMixin, mixins.ListModelMixin, GenericViewSet):
+                mixins.UpdateModelMixin, mixins.ListModelMixin,
+                mixins.DestroyModelMixin, GenericViewSet):
     queryset = Stage.objects.all()
     serializer_class = StageSerializer
 
