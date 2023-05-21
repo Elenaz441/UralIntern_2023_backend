@@ -175,9 +175,9 @@ class Stage(models.Model):
     description = models.TextField(max_length=1000, verbose_name='Описание', null=True, blank=True)
     evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
     is_active = models.BooleanField(verbose_name='Активный этап', default=True)
-    start_date = models.DateField(verbose_name='Дата начала')
-    end_date = models.DateField(verbose_name='Дата окончания')
-    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки')
+    start_date = models.DateField(verbose_name='Дата начала', default='1970-01-01')
+    end_date = models.DateField(verbose_name='Дата окончания', default='1970-01-01')
+    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки', default='1970-01-01')
 
     def __str__(self):
         return self.title
