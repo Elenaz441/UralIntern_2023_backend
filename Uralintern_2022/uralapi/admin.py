@@ -14,13 +14,13 @@ class UserResource(resources.ModelResource):
         fields = ('id', 'email', 'last_name', 'first_name', 'patronymic', 'password', 'groups')
         widgets = {'groups': {'field': 'name'}}
 
-    # def before_save_instance(self, instance, using_transactions, dry_run):
-    #     if not instance.password:
-    #         instance.set_password(generate_password())
-    #     else:
-    #         instance.set_password(instance.password)
-    #     instance.save()
-    #     return instance
+    def before_save_instance(self, instance, using_transactions, dry_run):
+        if not instance.password:
+            instance.set_password(generate_password())
+        else:
+            instance.set_password(instance.password)
+        instance.save()
+        return instance
 
 
 @admin.register(User)

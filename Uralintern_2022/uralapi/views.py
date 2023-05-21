@@ -148,17 +148,14 @@ def estimate(request, *args, **kwargs):
 @api_view()
 @permission_classes([IsAuthenticated])
 def get_estimation(request, *args, **kwargs):
-    if not (request.query_params.get('id_user') and
-            request.query_params.get('id_evaluation_criteria') and
-            request.query_params.get('id_stage') and
+    if not (request.query_params.get('id_user') or
+            request.query_params.get('id_evaluation_criteria') or
+            request.query_params.get('id_stage') or
             request.query_params.get('id_intern')):
         return Response(status=status.HTTP_400_BAD_REQUEST)
-    if int(request.user.id) != int(request.query_params.get('id_user')):
-        return Response(status=status.HTTP_403_FORBIDDEN)
-    estimation = Estimation.objects.filter(id_appraiser=int(request.query_params.get('id_user')),
-                                           id_evaluation_criteria=int(request.query_params.get('id_evaluation_criteria')),
-                                           id_stage=int(request.query_params.get('id_stage')),
-                                           id_intern=int(request.query_params.get('id_intern')))
+    # if int(request.user.id) != int(request.query_params.get('id_user')):
+    #     return Response(status=status.HTTP_403_FORBIDDEN)
+    estimation = Estimation.objects.filter(**get_filter_keys(request))
     if estimation:
         return Response(EstimationSerializer(estimation, many=True).data)
     else:

@@ -40,3 +40,16 @@ def get_forms_team(id_user, id_team):
     return {'not estimated': total_count - user_estimations,
             'estimated': user_estimations,
             'total': total_count}
+
+
+def get_filter_keys(request) -> dict:
+    keys = {}
+    if request.query_params.get('id_user'):
+        keys["id_appraiser"] = int(request.query_params.get('id_user'))
+    if request.query_params.get('id_evaluation_criteria'):
+        keys["id_evaluation_criteria"] = int(request.query_params.get('id_evaluation_criteria'))
+    if request.query_params.get('id_stage'):
+        keys["id_stage"] = int(request.query_params.get('id_stage'))
+    if request.query_params.get('id_intern'):
+        keys["id_intern"] = int(request.query_params.get('id_intern'))
+    return keys

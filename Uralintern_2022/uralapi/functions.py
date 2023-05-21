@@ -16,5 +16,5 @@ def upload_to(instance, filename: str):
     :return: Строка с именем файла
     """
     ext = filename.split('.')[-1]
-    return f'photos/user{instance.id}.{ext}'
+    return f'photos/user{instance.id}{generate_password()}.{ext}'
 
