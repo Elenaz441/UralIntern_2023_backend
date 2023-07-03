@@ -10,9 +10,11 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
+        us = UserSerializer(user)
 
         # Add custom claims
-        token['email'] = user.email
+        token["groups"] = us.data["groups"]
+        # token['email'] = user.email
         # ...
 
         return token

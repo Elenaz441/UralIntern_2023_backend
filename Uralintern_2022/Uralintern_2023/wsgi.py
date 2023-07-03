@@ -1,5 +1,5 @@
 """
-WSGI config for Uralintern_2022 project.
+WSGI config for Uralintern_2023 project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Uralintern_2022.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Uralintern_2023.settings')
 
 application = get_wsgi_application()
