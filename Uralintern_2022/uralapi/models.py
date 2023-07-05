@@ -108,7 +108,11 @@ class Estimation(models.Model):
 
 class EvaluationCriteria(models.Model):
     title = models.CharField(max_length=100, verbose_name='Название критерия оценки')
-    description = models.TextField(max_length=1000, verbose_name='Описание')
+    description_minus_one = models.TextField(max_length=1000, verbose_name='Описание для оценки "-1"', null=True, blank=True,)
+    description_zero = models.TextField(max_length=1000, verbose_name='Описание для оценки "0"', null=True, blank=True,)
+    description_one = models.TextField(max_length=1000, verbose_name='Описание для оценки "1"', null=True, blank=True,)
+    description_two = models.TextField(max_length=1000, verbose_name='Описание для оценки "2"', null=True, blank=True,)
+    description_three = models.TextField(max_length=1000, verbose_name='Описание для оценки "3"', null=True, blank=True,)
 
     def __str__(self):
         return self.title

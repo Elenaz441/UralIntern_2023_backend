@@ -131,8 +131,8 @@ class StageAdmin(admin.ModelAdmin):
 
 @admin.register(EvaluationCriteria)
 class EvaluationCriteriaAdmin(admin.ModelAdmin):
-    list_display = ('title', 'description')
-    search_fields = ('title', 'description')
+    list_display = ('title', )
+    search_fields = ('title', )
     list_filter = ('title',)
 
 
