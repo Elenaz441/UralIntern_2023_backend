@@ -15,7 +15,7 @@ function doAjaxSubmit(e) {
   ).toUpperCase();
 
   if (method === 'GET') {
-    // GET requests can always use standard form submits.
+    // GET requests.txt can always use standard form submits.
     return;
   }
 
@@ -24,7 +24,7 @@ function doAjaxSubmit(e) {
     form.find('select[data-override="content-type"] option:selected').text();
 
   if (method === 'POST' && !contentType) {
-    // POST requests can use standard form submits, unless we have
+    // POST requests.txt can use standard form submits, unless we have
     // overridden the content type.
     return;
   }

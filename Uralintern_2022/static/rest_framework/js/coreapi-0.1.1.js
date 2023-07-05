@@ -1912,7 +1912,7 @@ module.exports = function lolcation(loc) {
     this.referrer = null
 
     if ((this.method === 'GET' || this.method === 'HEAD') && body) {
-      throw new TypeError('Body not allowed for GET or HEAD requests')
+      throw new TypeError('Body not allowed for GET or HEAD requests.txt')
     }
     this._initBody(body)
   }

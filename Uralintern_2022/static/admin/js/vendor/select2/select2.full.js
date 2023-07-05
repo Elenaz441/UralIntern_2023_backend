@@ -3600,7 +3600,7 @@ S2.define('select2/data/ajax',[
     var self = this;
 
     if (this._request != null) {
-      // JSONP requests cannot always be aborted
+      // JSONP requests.txt cannot always be aborted
       if ($.isFunction(this._request.abort)) {
         this._request.abort();
       }
