@@ -18,7 +18,7 @@ class StatusAdmin(SimpleView):
 
 @admin.register(Task)
 class TaskAdmin(admin.ModelAdmin):
-    list_display = ('id', 'parent_id', 'name', 'status_id')
+    list_display = ('id', 'parent_id', 'name', 'status_id', 'is_on_kanban')
     list_filter = ('project_id', )
 
 

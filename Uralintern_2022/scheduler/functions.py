@@ -1,5 +1,3 @@
-from django.db.models import F
-
 from .models import Task, Executor, Role
 
 GANTT_VALUES_LIST = [
@@ -9,7 +7,13 @@ GANTT_VALUES_LIST = [
 ]
 
 KANBAN_VALUES_LIST = [
-    'task_id', 'task_id__name', 'task_id__planned_final_date'
+    'task_id',
+    'task_id__project_id',
+    'task_id__team_id__teg',
+    'task_id__name',
+    'task_id__status_id',
+    'task_id__status_id__name',
+    'task_id__planned_final_date'
 ]
 DATE_FORMAT = "%Y-%m-%d"
 
@@ -35,6 +39,10 @@ def gant_recursive_tasks(initial_tasks_list, parent_id, task_list):
 
 
 def get_kanban_tasks(project_id):
-    tasks = Executor.objects.select_related('task_id', 'role_id').filter(role_id=Role.objects.filter(name='RESPONSIBLE')).values()
+    tasks = Executor.objects.select_related('task_id', 'role_id')\
+        .filter(task_id__is_on_kanban=True,
+                task_id__project_id=project_id,
+                role_id=Role.objects.get(name='RESPONSIBLE'))\
+        .values(*KANBAN_VALUES_LIST)
     return tasks
 
