@@ -5,12 +5,15 @@ from django.contrib.auth.models import AbstractUser, Group
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.hashers import make_password
 from django.db.models.signals import post_save, pre_save
-from django.dispatch import receiver
 from django.utils.translation import ugettext_lazy as _
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from .functions import upload_to
 from django.conf import settings
+from django.dispatch import receiver
+from django.urls import reverse
+from django_rest_passwordreset.signals import reset_password_token_created
 from django.core.mail import send_mail
+
 
 
 class UserManager(BaseUserManager):
@@ -213,21 +216,38 @@ def pre_save_user(sender, instance, *args, **kwargs):
     old_img = os.path.join(settings.BASE_DIR, f'media/photos/user{instance.id}.{ext}')
     if os.path.exists(old_img) and str(instance.image) != f'photos/user{instance.id}.{ext}':
         os.remove(old_img)
-    if (instance._password):
-        send_mail(
-            'Личный кабинет стажёра Uralintern',
-            f"Привет! Вы были зарегестрированы или выши данные были изменены." \
-            f"\nВот ваши логин и пароль для входа в личный кабинет для оценки по стажёрским компетециям." \
-                          f"\nЛогин -  {instance.email}" \
-                          f"\nПароль - {instance._password}" \
-                          f"\nПожалуйста, сохраните данные для входа!" \
-                          f"\nОценки можно давать через веб-приложение",
-            settings.EMAIL_HOST_USER,
-            [f'{instance.email}'],
-        )
+    # if (instance._password):
+    #     send_mail(
+    #         'Личный кабинет стажёра Uralintern',
+    #         f"Привет! Вы были зарегестрированы или выши данные были изменены." \
+    #         f"\nВот ваши логин и пароль для входа в личный кабинет для оценки по стажёрским компетециям." \
+    #                       f"\nЛогин -  {instance.email}" \
+    #                       f"\nПароль - {instance._password}" \
+    #                       f"\nПожалуйста, сохраните данные для входа!" \
+    #                       f"\nОценки можно давать через веб-приложение",
+    #         settings.EMAIL_HOST_USER,
+    #         [f'{instance.email}'],
+    #     )
 
 
 @receiver(post_save, sender=User)
 def post_save_user(sender, instance, *args, **kwargs):
     if not UserInfo.objects.filter(id_user=instance).exists():
         UserInfo.objects.create(id_user=instance)
+
+
+@receiver(reset_password_token_created)
+def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
+
+    email_plaintext_message = "{}?token={}".format(reverse('password_reset:reset-password-request'), reset_password_token.key)
+
+    send_mail(
+        # title:
+        "Password Reset for {title}".format(title="Some website title"),
+        # message:
+        email_plaintext_message,
+        # from:
+        "noreply@somehost.local",
+        # to:
+        [reset_password_token.user.email]
+    )
