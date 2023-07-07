@@ -1,8 +1,8 @@
+from .functions import get_tasks, DATE_FORMAT, create_task, create_executors, create_stages
 from rest_framework.decorators import api_view, permission_classes
-from uralapi.models import Project, Team, InternTeam, User
-from rest_framework.permissions import IsAuthenticated
 from .models import Task, Status, Executor, Role, Stage, Comment
-from .functions import get_tasks, DATE_FORMAT
+from rest_framework.permissions import IsAuthenticated
+from uralapi.models import Project, Team, InternTeam
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.forms import model_to_dict
@@ -32,42 +32,28 @@ class TaskList(APIView):
     @permission_classes([IsAuthenticated])
     def post(self, request):
         user = request.user
-        task_info = request.data.get('task')
-        if not task_info:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        task_stages = request.data.get('task_stages')
-        responsible_user_id = request.data.get('responsible_user')
-        team = InternTeam.objects.filter(id_intern=user).select_related('id_team').get(
-            id_team__id_project=task_info.get('project_id'))
-        try:
-            parent_task = Task.objects.filter(id=task_info.get('parent_id')).first()
-            if parent_task:
-                parent_task.is_on_kanban = False
-                parent_task.save()
-            task = Task.objects.create(
-                parent_id=parent_task, project_id=team.id_team.id_project,
-                team_id=team.id_team, name=task_info.get('name'), description=task_info.get('description'),
-                planned_start_date=task_info.get('planned_start_date'),
-                planned_final_date=task_info.get('planned_final_date'),
-                deadline=task_info.get('deadline'),
-                status_id=Status.objects.get(name='TO WORK'),
-            )
-            Executor.objects.create(task_id=task, user_id=user, role_id=Role.objects.get(name='AUTHOR'))
-            responsible_user = User.objects.filter(id=responsible_user_id).first()
-            Executor.objects.create(
-                task_id=task, role_id=Role.objects.get(name='RESPONSIBLE'),
-                user_id=responsible_user if responsible_user else user
-            )
-            for stage in task_stages:
-                if stage.get('description'):
-                    Stage.objects.create(
-                        task_id=task,
-                        description=stage.get('description')
-                    )
-        except Exception as e:
-            print(e)
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        return Response(model_to_dict(task))
+        task_data = request.data.get('task')
+        team = InternTeam.objects.filter(id_intern=user).select_related('id_team').get(id_team__id_project=task_data.get('project_id'))
+        parent_task = Task.objects.filter(id=task_data.get('parent_id')).first()
+        task = create_task(parent_id=parent_task,
+                           project_id=team.id_team.id_project,
+                           team_id=team.id_team,
+                           name=task_data.get('name'),
+                           description=task_data.get('description'),
+                           planned_start_date=task_data.get('planned_start_date'),
+                           planned_final_date=task_data.get('planned_final_date'),
+                           deadline=task_data.get('deadline'))
+        if parent_task:
+            if not (parent_task.planned_start_date <= task.planned_start_date < task.planned_final_date <= parent_task.planned_final_date):
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+            parent_task.is_on_kanban = False
+            parent_task.save()
+        task.save()
+        executors = create_executors(task_id=task, author=request.user, responsible_users=request.data.get('responsible_users'))
+        stages = create_stages(task=task, stages=request.data.get('task_stages'))
+        return Response({'task': model_to_dict(task),
+                         'executors': map(model_to_dict, executors),
+                         'stages': map(model_to_dict, stages)})
 
 
 class TaskDetailView(APIView):
@@ -78,8 +64,10 @@ class TaskDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         stages = Stage.objects.filter(task_id=task).values('id', 'task_id', 'description', 'is_ready')
         comments = Comment.objects.filter(task_id=task) \
-            .select_related('user_id').values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name')
-        executors = Executor.objects.filter(task_id=task).select_related('role_id', 'user_id') \
+            .select_related('user_id') \
+            .values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name')
+        executors = Executor.objects.filter(task_id=task) \
+            .select_related('role_id', 'user_id') \
             .values('id', 'user_id', 'user_id__first_name', 'user_id__last_name', 'role_id__name')
         return Response({'task': model_to_dict(task),
                          'executors': executors,
@@ -93,21 +81,34 @@ class TaskDetailView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         task_executors = Executor.objects.filter(task_id=task, user_id=request.user).select_related('user_id').all()
         if not any(executor.user_id == request.user for executor in task_executors):
-            return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        # TODO: Добавить валидацию
-        task.update(**request.data)
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        try:
+            task = task.update(
+                name=request.data.get('name'),
+                description=request.data.get('description'),
+                planned_start_date=request.data.get('planned_start_date'),
+                planned_final_date=request.data.get('planned_final_date'),
+                deadline=request.data.get('deadline')
+            )
+        except ValueError:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
         return Response(model_to_dict(task))
 
     @permission_classes([IsAuthenticated])
     def delete(self, request, id):
-        task = Task.objects.filter(id=id).first()
+        task = Task.objects.filter(id=id).select_related('parent_id').first()
         if not task:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        author = Executor.objects.filter(task_id=task, role_id=Role.objects.get(name='AUTHOR')).select_related(
-            'user_id').first()
-        if author.user_id != request.user or not request.user.groups.filter(name='куратор').exists():
-            return Response(status.HTTP_405_METHOD_NOT_ALLOWED)
+        author = Executor.objects.filter(task_id=task, role_id=Role.objects.get(name='AUTHOR'))\
+            .select_related('user_id').first()
+        if author.user_id != request.user and not request.user.groups.filter(name='куратор').exists():
+            return Response(status=status.HTTP_403_FORBIDDEN)
+        parent_task = task.parent_id
         task.delete()
+        tasks = Task.objects.filter(parent_id=parent_task).all()
+        if not tasks:
+            parent_task.is_on_kanban = True
+            parent_task.save()
         return Response({'id': id, 'status': 'deleted'}, status=status.HTTP_200_OK)
 
 
@@ -157,7 +158,7 @@ class StageDetailView(APIView):
         if not task:
             return Response(status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=task.id).all()
-        if not any(request.user == executor for executor in executors):
+        if not any(request.user == executor.user_id for executor in executors):
             return Response(status=status.HTTP_403_FORBIDDEN)
         if not request.data.get('description'):
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -173,7 +174,7 @@ class StageDetailView(APIView):
         if not stage:
             return Response(status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=stage.task_id).all()
-        if not any(request.user == executor for executor in executors):
+        if not any(request.user == executor.user_id for executor in executors):
             return Response(status=status.HTTP_403_FORBIDDEN)
         description, is_ready = request.data.get('description'), request.data.get('is_ready')
         if not (description or is_ready):
@@ -191,7 +192,7 @@ class StageDetailView(APIView):
         if not stage:
             return Response(status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=stage.task_id).all()
-        if not any(request.user == executor for executor in executors):
+        if not any(request.user == executor.user_id for executor in executors):
             return Response(status=status.HTTP_403_FORBIDDEN)
         stage.delete()
         return Response({'stage_id': request.data.get('stage_id'), 'status': 'deleted'})
@@ -205,8 +206,8 @@ def change_date(request, id):
         return Response(status=status.HTTP_404_NOT_FOUND)
     start_date, final_date = request.data.get('planned_start_date'), request.data.get('planned_final_date')
     try:
-        task.planned_start_date = datetime.strptime(start_date, DATE_FORMAT)
-        task.planned_final_date = datetime.strptime(final_date, DATE_FORMAT)
+        task.planned_start_date = datetime.strptime(start_date, DATE_FORMAT).date()
+        task.planned_final_date = datetime.strptime(final_date, DATE_FORMAT).date()
     except:
         return Response(status=status.HTTP_400_BAD_REQUEST)
     parent_task = task.parent_id
@@ -240,4 +241,35 @@ def change_kanban_view(request, id):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def change_task_status(request, id):
-    pass
+    task = Task.objects.filter(id=id).first()
+    if not task:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    executors = Executor.objects.select_related('user_id').filter(task_id=task)
+    if not any(request.user == executor for executor in executors):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    if request.data.get('status') not in ['TO WORK', 'IN PROGRESS', 'TESTING', 'CHECKING']:
+        return Response(status=status.HTTP_400_BAD_REQUEST)
+    _status = Status.objects.filter(name=request.data.get('status')).first()
+    task.status_id = _status
+    task.save()
+    return Response({'id': task.id, 'status_id': task.status_id, 'status_name': task.status_id.name})
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def complete_task(request, id):
+    task = Task.objects.filter(id=id).first()
+    if not task:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+    responsible = Executor.objects \
+        .select_related('user_id', 'role_id') \
+        .filter(task_id=task, role_id__name='RESPONSIBLE').first()
+    if request.user != responsible.user_id:
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    task.status_id = Status.objects.filter(name='COMPLETED').first()
+    task.completed_at = datetime.now()
+    responsible.time_spent = request.data.get('time_spent')
+    task.save()
+    responsible.save()
+    return Response({'id': task.id, 'status_id': task.status_id, 'status_name': task.status_id.name, 'time_spent': responsible.time_spent})
+

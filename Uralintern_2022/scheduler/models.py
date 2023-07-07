@@ -1,6 +1,6 @@
 from django.db import models
 from uralapi.models import User, Team, Project
-
+from datetime import datetime
 
 class Role(models.Model):
     ROLES_CHOICES = [
@@ -68,10 +68,20 @@ class Task(models.Model):
     def update(self, **kwargs):
         self.name = kwargs.get('name', self.name)
         self.description = kwargs.get('description', self.description)
-        self.planned_start_date = kwargs.get('planned_start_date', self.planned_start_date)
-        self.planned_final_date = kwargs.get('planned_final_date', self.planned_final_date)
-        self.deadline = kwargs.get('deadline', self.deadline)
+        self.deadline = datetime.strptime(kwargs.get('deadline', self.deadline), "%Y-%m-%d").date()
+        parent_task = self.parent_id
+        start_date, final_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date(),\
+            datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
+        if parent_task:
+            if parent_task.planned_start_date <= start_date < final_date <= parent_task.planned_final_date:
+                self.planned_start_date = start_date
+                self.planned_final_date = final_date
+            raise ValueError('Incorrect date terms')
+        else:
+            self.planned_start_date = start_date
+            self.planned_final_date = final_date
         self.save()
+        return self
 
     def __str__(self):
         return self.__repr__()

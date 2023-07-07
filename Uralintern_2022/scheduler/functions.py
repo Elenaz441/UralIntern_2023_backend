@@ -1,4 +1,6 @@
-from .models import Task, Executor, Role
+from uralapi.models import User
+from .models import Task, Executor, Role, Status, Stage
+from datetime import datetime
 
 GANTT_VALUES_LIST = [
     'id', 'parent_id', 'project_id', 'team_id', 'name',
@@ -45,4 +47,36 @@ def get_kanban_tasks(project_id):
                 role_id=Role.objects.get(name='RESPONSIBLE'))\
         .values(*KANBAN_VALUES_LIST)
     return tasks
+
+
+def create_task(**kwargs) -> Task:
+    task = Task(
+        parent_id=kwargs.get('parent_id', None),
+        project_id=kwargs.get('project_id'),
+        team_id=kwargs.get('team_id'),
+        name=kwargs.get('name'),
+        description=kwargs.get('description'),
+        planned_start_date=datetime.strptime(kwargs.get('planned_start_date'), DATE_FORMAT).date(),
+        planned_final_date=datetime.strptime(kwargs.get('planned_final_date'), DATE_FORMAT).date(),
+        deadline=datetime.strptime(kwargs.get('deadline'), DATE_FORMAT).date(),
+        status_id=Status.objects.get(name='TO WORK')
+    )
+    return task
+
+
+def create_executors(**kwargs) -> list:
+    author = Executor.objects.create(task_id=kwargs.get('task_id'), user_id=kwargs.get('author'),
+                                     role_id=Role.objects.get(name='AUTHOR'))
+    responsible_users = [
+        Executor.objects.create(
+            task_id=kwargs.get('task_id'),
+            user_id=User.objects.get(id=responsible),
+            role_id=Role.objects.get(name='RESPONSIBLE')) for responsible in set(kwargs.get('responsible_users'))]
+    return [author, *responsible_users]
+
+
+def create_stages(task, stages):
+    if stages:
+        return [Stage.objects.create(task_id=task, description=stage.get('description')) for stage in stages]
+    return []
 
