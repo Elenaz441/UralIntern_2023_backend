@@ -1,5 +1,6 @@
 import os
 
+from django.core.exceptions import ValidationError
 from django.db import models, connection
 from django.contrib.auth.models import AbstractUser, Group
 from django.contrib.auth.base_user import BaseUserManager
@@ -111,11 +112,7 @@ class Estimation(models.Model):
 
 class EvaluationCriteria(models.Model):
     title = models.CharField(max_length=100, verbose_name='Название критерия оценки')
-    description_minus_one = models.TextField(max_length=1000, verbose_name='Описание для оценки "-1"', null=True, blank=True,)
-    description_zero = models.TextField(max_length=1000, verbose_name='Описание для оценки "0"', null=True, blank=True,)
-    description_one = models.TextField(max_length=1000, verbose_name='Описание для оценки "1"', null=True, blank=True,)
-    description_two = models.TextField(max_length=1000, verbose_name='Описание для оценки "2"', null=True, blank=True,)
-    description_three = models.TextField(max_length=1000, verbose_name='Описание для оценки "3"', null=True, blank=True,)
+    description = models.TextField(max_length=1000, verbose_name='Описание', null=True, blank=True)
 
     def __str__(self):
         return self.title
@@ -132,6 +129,10 @@ class EventUts(models.Model):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        if self.start_date > self.end_date:
+            raise ValidationError('Дата начала позже даты окончания')
 
     class Meta:
         verbose_name = 'Мероприятие'
@@ -171,6 +172,17 @@ class Project(models.Model):
     def __str__(self):
         return self.title
 
+    def clean(self):
+        if self.start_date > self.end_date:
+            raise ValidationError('Дата начала позже даты окончания')
+        event = self.id_event
+        if self.start_date < event.start_date:
+            raise ValidationError({'start_date':
+                    f'Дата начала проекта ({self.start_date}) раньше даты начала мероприятия ({event.start_date})'})
+        if self.end_date > event.end_date:
+            raise ValidationError({'end_date':
+                    f'Дата окончания проекта ({self.end_date}) позже даты окончания мероприятия ({event.end_date})'})
+
     class Meta:
         verbose_name = 'Проект'
         verbose_name_plural = 'Проекты'
@@ -182,12 +194,16 @@ class Stage(models.Model):
     description = models.TextField(max_length=1000, verbose_name='Описание', null=True, blank=True)
     evaluation_criteria = models.ManyToManyField(EvaluationCriteria, verbose_name='Критерии оценки', blank=True)
     is_active = models.BooleanField(verbose_name='Активный этап', default=True)
-    start_date = models.DateField(verbose_name='Дата начала', default='1970-01-01')
-    end_date = models.DateField(verbose_name='Дата окончания', default='1970-01-01')
-    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки', default='1970-01-01')
+    start_date = models.DateField(verbose_name='Дата начала')
+    end_date = models.DateField(verbose_name='Дата окончания')
+    end_estimation_date = models.DateField(verbose_name='Дата окончания оценки')
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        if self.start_date > self.end_date:
+            raise ValidationError('Дата начала позже даты окончания')
 
     class Meta:
         verbose_name = 'Этап оценивания'
@@ -228,6 +244,18 @@ def pre_save_user(sender, instance, *args, **kwargs):
     #         settings.EMAIL_HOST_USER,
     #         [f'{instance.email}'],
     #     )
+
+
+# @receiver(pre_save, sender=Project)
+# def pre_save_project(sender, instance, *args, **kwargs):
+#     print(instance)
+#     print(instance.id_event.id)
+#     event = instance.id_event
+#     print(event)
+#     if instance.start_date < event.start_date:
+#         raise ValidationError(f'Дата начала проекта ({instance.start_date}) раньше даты начала мероприятия ({event.start_date})')
+#     if instance.end_date > event.end_date:
+#         raise ValidationError(f'Дата окончания проекта ({instance.end_date}) позже даты окончания мероприятия ({event.end_date})')
 
 
 @receiver(post_save, sender=User)
