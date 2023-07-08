@@ -131,8 +131,9 @@ class EventUts(models.Model):
         return self.title
 
     def clean(self):
-        if self.start_date > self.end_date:
-            raise ValidationError('Дата начала позже даты окончания')
+        if self.start_date and self.end_date:
+            if self.start_date > self.end_date:
+                raise ValidationError('Дата начала позже даты окончания')
 
     class Meta:
         verbose_name = 'Мероприятие'
@@ -232,30 +233,6 @@ def pre_save_user(sender, instance, *args, **kwargs):
     old_img = os.path.join(settings.BASE_DIR, f'media/photos/user{instance.id}.{ext}')
     if os.path.exists(old_img) and str(instance.image) != f'photos/user{instance.id}.{ext}':
         os.remove(old_img)
-    # if (instance._password):
-    #     send_mail(
-    #         'Личный кабинет стажёра Uralintern',
-    #         f"Привет! Вы были зарегестрированы или выши данные были изменены." \
-    #         f"\nВот ваши логин и пароль для входа в личный кабинет для оценки по стажёрским компетециям." \
-    #                       f"\nЛогин -  {instance.email}" \
-    #                       f"\nПароль - {instance._password}" \
-    #                       f"\nПожалуйста, сохраните данные для входа!" \
-    #                       f"\nОценки можно давать через веб-приложение",
-    #         settings.EMAIL_HOST_USER,
-    #         [f'{instance.email}'],
-    #     )
-
-
-# @receiver(pre_save, sender=Project)
-# def pre_save_project(sender, instance, *args, **kwargs):
-#     print(instance)
-#     print(instance.id_event.id)
-#     event = instance.id_event
-#     print(event)
-#     if instance.start_date < event.start_date:
-#         raise ValidationError(f'Дата начала проекта ({instance.start_date}) раньше даты начала мероприятия ({event.start_date})')
-#     if instance.end_date > event.end_date:
-#         raise ValidationError(f'Дата окончания проекта ({instance.end_date}) позже даты окончания мероприятия ({event.end_date})')
 
 
 @receiver(post_save, sender=User)
@@ -267,15 +244,19 @@ def post_save_user(sender, instance, *args, **kwargs):
 @receiver(reset_password_token_created)
 def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
 
-    email_plaintext_message = "{}?token={}".format(reverse('password_reset:reset-password-request'), reset_password_token.key)
+    email_plaintext_message = "{}?token={}".format(reverse('password_reset:reset-password-confirm'), reset_password_token.key)
 
     send_mail(
         # title:
-        "Password Reset for {title}".format(title="Some website title"),
+        "Сброс пароля для сайта UralIntern: Личный кабинет стажёра",
         # message:
-        email_plaintext_message,
+        f"Здравствуйте! \n"
+        f"На сайте \"UralIntern: Личный кабинет стажёра\" был сделан запрос на восстановление пароля к вашей учётной записи, "
+        f"чтобы восстановить пароль вам потребуется перейти по данной ссылке {settings.PRIMARY_HOST}{email_plaintext_message}. \n"
+        f"Если вы не просили сбросить пароль, вы можете спокойно проигнорировать это письмо. "
+        f"Будьте уверены, что ваш аккаунт в безопасности.",
         # from:
-        "noreply@somehost.local",
+        settings.EMAIL_HOST_USER,
         # to:
         [reset_password_token.user.email]
     )

@@ -47,14 +47,14 @@ class UserAdmin(UserAdmin, ImportExportActionModelAdmin):
 
     list_display = ('id', 'last_name', 'first_name', 'patronymic', 'email')
     list_display_links = ('id', 'last_name')
-    search_fields = ('last_name', 'first_name', 'patronymic')
+    search_fields = ('last_name', 'first_name', 'patronymic', 'email')
     list_filter = ('groups', )
 
 
 @admin.register(UserInfo)
 class UserInfoAdmin(admin.ModelAdmin):
     list_display = ('id_user', )
-    search_fields = ('last_name', 'first_name', 'patronymic')
+    search_fields = ('id_user__last_name', 'id_user__first_name', 'id_user__patronymic')
 
     fieldsets = (
         (('Образование'), {
@@ -76,7 +76,7 @@ class EventUtsAdmin(admin.ModelAdmin):
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('title', 'id_event', 'id_director', 'start_date', 'end_date')
-    search_fields = ('title',)
+    search_fields = ('title', 'id_event__title', 'id_director__last_name')
     list_filter = ('id_event', 'start_date', 'end_date')
     filter_horizontal = ['evaluation_criteria', ]
 
@@ -97,8 +97,8 @@ class TeamResource(resources.ModelResource):
 class TeamAdmin(ImportExportActionModelAdmin):
     resource_class = TeamResource
     list_display = ('title', 'id_project', 'id_tutor')
-    search_fields = ('title',)
-    list_filter = ('id_project', 'id_tutor')
+    search_fields = ('title', 'id_project__title', 'id_tutor__last_name')
+    list_filter = ('id_project', )
 
     def render_change_form(self, request, context, *args, **kwargs):
         context['adminform'].form.fields['id_tutor'].queryset = User.objects.filter(groups__in=[Group.objects.get(name='куратор').id])
@@ -108,7 +108,7 @@ class TeamAdmin(ImportExportActionModelAdmin):
 @admin.register(InternTeam)
 class InternTeamAdmin(admin.ModelAdmin):
     list_display = ('id_team', 'id_intern', 'role')
-    search_fields = ('id_team', 'id_intern', 'role')
+    search_fields = ('id_team__title', 'id_intern__last_name', 'role__title')
     list_filter = ('id_team', 'role')
 
     def render_change_form(self, request, context, *args, **kwargs):
@@ -124,8 +124,8 @@ class RoleInTeamAdmin(admin.ModelAdmin):
 @admin.register(Stage)
 class StageAdmin(admin.ModelAdmin):
     list_display = ('title', 'id_team', 'start_date', 'end_date')
-    search_fields = ('title',)
-    list_filter = ('id_team',)
+    search_fields = ('title', 'id_team__title')
+    list_filter = ('start_date', 'end_date')
     filter_horizontal = ['evaluation_criteria', ]
 
 
@@ -133,13 +133,13 @@ class StageAdmin(admin.ModelAdmin):
 class EvaluationCriteriaAdmin(admin.ModelAdmin):
     list_display = ('title', 'description')
     search_fields = ('title', 'description')
-    list_filter = ('title',)
 
 
 @admin.register(Estimation)
 class EstimationAdmin(admin.ModelAdmin):
     list_display = ('id_appraiser', 'id_stage', 'id_evaluation_criteria', 'id_intern', 'time_voting', 'estimation')
-    list_filter = ('time_voting', )
+    list_filter = ('time_voting', 'id_evaluation_criteria',)
+    search_fields = ('id_appraiser__last_name', 'id_appraiser__first_name', 'id_stage__title', 'id_intern__last_name', 'id_intern__first_name')
     # readonly_fields = ('id_appraiser', 'id_stage', 'id_evaluation_criteria', 'id_intern', 'time_voting', 'estimation')
 
     # def has_add_permission(self, request, obj=None):
