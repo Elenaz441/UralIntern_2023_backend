@@ -10,6 +10,7 @@ from rest_framework import status
 from datetime import datetime
 
 
+# TODO: TESTED
 class TaskList(APIView):
     @permission_classes([IsAuthenticated])
     def get(self, request):
@@ -33,7 +34,8 @@ class TaskList(APIView):
     def post(self, request):
         user = request.user
         task_data = request.data.get('task')
-        team = InternTeam.objects.filter(id_intern=user).select_related('id_team').get(id_team__id_project=task_data.get('project_id'))
+        team = InternTeam.objects.filter(id_intern=user).select_related('id_team').get(
+            id_team__id_project=task_data.get('project_id'))
         parent_task = Task.objects.filter(id=task_data.get('parent_id')).first()
         task = create_task(parent_id=parent_task,
                            project_id=team.id_team.id_project,
@@ -44,18 +46,21 @@ class TaskList(APIView):
                            planned_final_date=task_data.get('planned_final_date'),
                            deadline=task_data.get('deadline'))
         if parent_task:
-            if not (parent_task.planned_start_date <= task.planned_start_date < task.planned_final_date <= parent_task.planned_final_date):
+            if not (
+                    parent_task.planned_start_date <= task.planned_start_date < task.planned_final_date <= parent_task.planned_final_date):
                 return Response(status=status.HTTP_400_BAD_REQUEST)
             parent_task.is_on_kanban = False
             parent_task.save()
         task.save()
-        executors = create_executors(task_id=task, author=request.user, responsible_users=request.data.get('responsible_users'))
+        executors = create_executors(task_id=task, author=request.user,
+                                     responsible_users=request.data.get('responsible_users'))
         stages = create_stages(task=task, stages=request.data.get('task_stages'))
         return Response({'task': model_to_dict(task),
                          'executors': map(model_to_dict, executors),
                          'stages': map(model_to_dict, stages)})
 
 
+# TODO: TESTED
 class TaskDetailView(APIView):
     @permission_classes([IsAuthenticated])
     def get(self, request, id):
@@ -99,7 +104,7 @@ class TaskDetailView(APIView):
         task = Task.objects.filter(id=id).select_related('parent_id').first()
         if not task:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        author = Executor.objects.filter(task_id=task, role_id=Role.objects.get(name='AUTHOR'))\
+        author = Executor.objects.filter(task_id=task, role_id=Role.objects.get(name='AUTHOR')) \
             .select_related('user_id').first()
         if author.user_id != request.user and not request.user.groups.filter(name='куратор').exists():
             return Response(status=status.HTTP_403_FORBIDDEN)
@@ -151,6 +156,7 @@ class CommentDetailView(APIView):
         return Response({'id': request.data.get('comment_id'), 'status': 'deleted'})
 
 
+# TODO: TESTED
 class StageDetailView(APIView):
     @permission_classes([IsAuthenticated])
     def post(self, request):
@@ -181,7 +187,7 @@ class StageDetailView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
         if description:
             stage.description = description
-        if is_ready:
+        if type(is_ready) is bool and is_ready in {True, False}:
             stage.is_ready = is_ready
         stage.save()
         return Response(model_to_dict(stage))
@@ -198,25 +204,37 @@ class StageDetailView(APIView):
         return Response({'stage_id': request.data.get('stage_id'), 'status': 'deleted'})
 
 
+# TODO: TESTED
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def change_date(request, id):
     task = Task.objects.filter(id=id).select_related('parent_id').first()
     if not task:
         return Response(status=status.HTTP_404_NOT_FOUND)
-    start_date, final_date = request.data.get('planned_start_date'), request.data.get('planned_final_date')
+    executors = Executor.objects.filter(task_id=task).all()
+    if not any(request.user == executor.user_id for executor in executors):
+        return Response(status=status.HTTP_403_FORBIDDEN)
+    previous_final_date = task.planned_final_date
+    start_date = request.data.get('planned_start_date')
+    final_date = request.data.get('planned_final_date')
+    deadline = request.data.get('deadline')
     try:
         task.planned_start_date = datetime.strptime(start_date, DATE_FORMAT).date()
         task.planned_final_date = datetime.strptime(final_date, DATE_FORMAT).date()
-    except:
+        if deadline:
+            task.deadline = datetime.strptime(deadline, DATE_FORMAT).date()
+            if not (task.planned_final_date <= task.deadline):
+                raise ValueError('Planned Final Date must be less than Deadline')
+        else:
+            task.deadline = task.planned_final_date + (task.deadline - previous_final_date)
+    except ValueError:
         return Response(status=status.HTTP_400_BAD_REQUEST)
     parent_task = task.parent_id
     if parent_task:
         if parent_task.planned_start_date <= task.planned_start_date < task.planned_final_date <= parent_task.planned_final_date:
             task.save()
             return Response(model_to_dict(task))
-        else:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+        return Response(status=status.HTTP_400_BAD_REQUEST)
     else:
         task.save()
         return Response(model_to_dict(task))
@@ -271,5 +289,5 @@ def complete_task(request, id):
     responsible.time_spent = request.data.get('time_spent')
     task.save()
     responsible.save()
-    return Response({'id': task.id, 'status_id': task.status_id, 'status_name': task.status_id.name, 'time_spent': responsible.time_spent})
-
+    return Response({'id': task.id, 'status_id': task.status_id, 'status_name': task.status_id.name,
+                     'time_spent': responsible.time_spent})
