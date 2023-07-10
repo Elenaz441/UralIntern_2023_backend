@@ -92,8 +92,8 @@ class UserInfo(models.Model):
         return self.id_user.__str__()
 
     class Meta:
-        verbose_name = 'Информация о пользователе'
-        verbose_name_plural = 'Информация о пользователях'
+        verbose_name = 'Данные о пользователе'
+        verbose_name_plural = 'Данные о пользователях'
 
 
 class Estimation(models.Model):
