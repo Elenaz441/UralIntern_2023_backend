@@ -109,10 +109,10 @@ class RolesView(generics.ListAPIView):
 def change_role(request):
     data = request.data
     if data['id_intern'] != request.user.id:
-        return  Response(status=status.HTTP_403_FORBIDDEN)
+        return Response(status=status.HTTP_403_FORBIDDEN)
     instance_role = InternTeam.objects.filter(id_intern=data['id_intern'], id_team=data['id_team']).first()
     if not instance_role:
-        return  Response(status=status.HTTP_403_FORBIDDEN)
+        return Response(status=status.HTTP_403_FORBIDDEN)
     serializer = InternTeamSerializer(instance=instance_role, data=data)
     serializer.is_valid(raise_exception=True)
     serializer.save()
@@ -133,7 +133,8 @@ def estimate(request, *args, **kwargs):
     estimation = request.data
     estimation['id_appraiser'] = request.user.id
     # пробуем получить оценку, если есть, то обновить существующую, если None, то создать новую
-    instance_estimation = Estimation.objects.select_related('id_appraiser', 'id_intern', 'id_stage', 'id_evaluation_criteria') \
+    instance_estimation = Estimation.objects.select_related('id_appraiser', 'id_intern', 'id_stage',
+                                                            'id_evaluation_criteria') \
         .filter(id_appraiser=estimation['id_appraiser'], id_intern=estimation['id_intern'],
                 id_stage=estimation['id_stage'], id_evaluation_criteria=estimation['id_evaluation_criteria']).first()
     # операция обновления стоит дороже
@@ -166,8 +167,8 @@ def get_estimation(request, *args, **kwargs):
 @permission_classes([IsAuthenticated])
 def get_estimations(request, id_user, id_team):
     if request.user.id != id_user and \
-        request.user.id != Team.objects.get(id=id_team).id_tutor.id and \
-        not InternTeam.objects.filter(id_intern=request.user.id, id_team=id_team):
+            request.user.id != Team.objects.get(id=id_team).id_tutor.id and \
+            not InternTeam.objects.filter(id_intern=request.user.id, id_team=id_team):
         return Response(status=status.HTTP_403_FORBIDDEN)
     stages = Stage.objects.filter(id_team=id_team)
     evaluation_criteria = [get_evaluation_criteria_by_stage(stage.id) for stage in stages]

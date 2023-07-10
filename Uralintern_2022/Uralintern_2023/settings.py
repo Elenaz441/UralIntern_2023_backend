@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'import_export',
     'django_rest_passwordreset',
+    'scheduler.apps.SchedulerConfig'
 ]
 
 MIDDLEWARE = [
