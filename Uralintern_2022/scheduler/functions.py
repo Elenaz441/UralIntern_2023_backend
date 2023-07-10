@@ -41,10 +41,10 @@ def gant_recursive_tasks(initial_tasks_list, parent_id, task_list):
 
 
 def get_kanban_tasks(project_id):
-    tasks = Executor.objects.select_related('task_id', 'role_id')\
+    tasks = Executor.objects.select_related('task_id', 'role_id') \
         .filter(task_id__is_on_kanban=True,
                 task_id__project_id=project_id,
-                role_id=Role.objects.get(name='RESPONSIBLE'))\
+                role_id=Role.objects.get(name='RESPONSIBLE')) \
         .values(*KANBAN_VALUES_LIST)
     return tasks
 
@@ -67,11 +67,19 @@ def create_task(**kwargs) -> Task:
 def create_executors(**kwargs) -> list:
     author = Executor.objects.create(task_id=kwargs.get('task_id'), user_id=kwargs.get('author'),
                                      role_id=Role.objects.get(name='AUTHOR'))
-    responsible_users = [
-        Executor.objects.create(
-            task_id=kwargs.get('task_id'),
-            user_id=User.objects.get(id=responsible),
-            role_id=Role.objects.get(name='RESPONSIBLE')) for responsible in set(kwargs.get('responsible_users'))]
+    if kwargs.get('responsible_users'):
+        responsible_users = [
+            Executor.objects.create(
+                task_id=kwargs.get('task_id'),
+                user_id=User.objects.get(id=responsible),
+                role_id=Role.objects.get(name='RESPONSIBLE')) for responsible in set(kwargs.get('responsible_users'))]
+    else:
+        responsible_users = [
+            Executor.objects.create(
+                task_id=kwargs.get('task_id'),
+                user_id=kwargs.get('author'),
+                role_id=Role.objects.get(name='RESPONSIBLE'))
+        ]
     return [author, *responsible_users]
 
 
@@ -79,4 +87,3 @@ def create_stages(task, stages):
     if stages:
         return [Stage.objects.create(task_id=task, description=stage.get('description')) for stage in stages]
     return []
-

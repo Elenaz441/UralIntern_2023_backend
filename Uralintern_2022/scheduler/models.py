@@ -1,6 +1,8 @@
 from django.db import models
 from uralapi.models import User, Team, Project
+from django.core.validators import RegexValidator
 from datetime import datetime
+
 
 class Role(models.Model):
     ROLES_CHOICES = [
@@ -34,7 +36,8 @@ class Status(models.Model):
     ]
 
     id = models.SmallAutoField(verbose_name='ID статуса', primary_key=True, auto_created=True)
-    name = models.CharField(verbose_name='Название статуса', unique=True, null=False, max_length=30, choices=STATUS_CHOICES)
+    name = models.CharField(verbose_name='Название статуса', unique=True, null=False, max_length=30,
+                            choices=STATUS_CHOICES)
 
     def __str__(self):
         return self.__repr__()
@@ -70,7 +73,7 @@ class Task(models.Model):
         self.description = kwargs.get('description', self.description)
         self.deadline = datetime.strptime(kwargs.get('deadline', self.deadline), "%Y-%m-%d").date()
         parent_task = self.parent_id
-        start_date, final_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date(),\
+        start_date, final_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date(), \
             datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
         if parent_task:
             if parent_task.planned_start_date <= start_date < final_date <= parent_task.planned_final_date:
@@ -100,7 +103,8 @@ class Executor(models.Model):
     task_id = models.ForeignKey(Task, on_delete=models.CASCADE, db_column='task_id', to_field='id')
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', to_field='id')
     role_id = models.ForeignKey(Role, on_delete=models.CASCADE, db_column='role_id', to_field='id')
-    time_spent = models.TimeField(verbose_name='Время выполнения задачи', null=True, blank=True)
+    time_spent = models.CharField(verbose_name='Время выполнения задачи', null=True, blank=True, max_length=20,
+                                  validators=[RegexValidator(regex=':[0-9][0-9]:[0-5][0-9]:[0-5][0-9]$')])
 
     class Meta:
         db_table = 'executors'

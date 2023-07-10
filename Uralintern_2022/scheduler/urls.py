@@ -10,6 +10,6 @@ urlpatterns = [
     path('api/v1/task/<int:id>/status/complete', complete_task),
     path('api/v1/comment', CommentDetailView.as_view()),
     path('api/v1/stage', StageDetailView.as_view()),
-    path('api/v1/task/is_on_kanban/<int:id>', change_kanban_view)
+    path('api/v1/task/<int:id>/is_on_kanban', change_kanban_view)
 ]
 
