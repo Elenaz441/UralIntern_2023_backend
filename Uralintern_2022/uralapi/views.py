@@ -1,3 +1,4 @@
+from datetime import datetime as datetime
 import validators
 from rest_framework import status
 from django.db.models import Q
@@ -59,7 +60,9 @@ class UpdateInfoView(generics.RetrieveUpdateAPIView):
 def get_user_teams(request):
     intern_teams = get_title_id(InternTeam.objects.filter(id_intern=request.user.id), 'intern')
     tutor_teams = get_title_id(Team.objects.filter(id_tutor=request.user.id), 'tutor')
-    director_teams = get_title_id(Project.objects.filter(id_director=request.user.id), 'director')
+    director_teams = get_title_id(Project.objects.filter(id_director=request.user.id,
+                                                         start_date__lte=datetime.datetime.today(),
+                                                         end_date__gte=datetime.datetime.today()), 'director')
     return Response({'intern': intern_teams, 'tutor': tutor_teams, 'director': director_teams})
 
 

@@ -4,8 +4,16 @@ from .forms import *
 from .models import *
 from django.contrib.auth.models import Group
 from django.contrib.auth.admin import UserAdmin
-from import_export.admin import ImportExportActionModelAdmin
 from import_export import resources, fields, widgets
+from import_export.admin import ImportExportActionModelAdmin
+from django_rest_passwordreset.admin import ResetPasswordToken
+from rest_framework_simplejwt.token_blacklist.admin import BlacklistedToken, OutstandingToken
+from django.apps import apps
+
+admin.site.unregister(ResetPasswordToken)
+admin.site.unregister(BlacklistedToken)
+admin.site.unregister(OutstandingToken)
+apps.get_model('auth.Group')._meta.app_label = 'uralapi'
 
 
 class UserResource(resources.ModelResource):
@@ -65,6 +73,9 @@ class UserInfoAdmin(admin.ModelAdmin):
         })
     )
 
+    def has_add_permission(self, request, obj=None):
+        return False
+
 
 @admin.register(EventUts)
 class EventUtsAdmin(admin.ModelAdmin):
@@ -97,8 +108,7 @@ class TeamResource(resources.ModelResource):
 class TeamAdmin(ImportExportActionModelAdmin):
     resource_class = TeamResource
     list_display = ('title', 'id_project', 'id_tutor')
-    search_fields = ('title', 'id_project__title', 'id_tutor__last_name')
-    list_filter = ('id_project', )
+    search_fields = ('title', 'id_project__title', 'id_tutor__last_name', 'id_tutor__first_name')
 
     def render_change_form(self, request, context, *args, **kwargs):
         context['adminform'].form.fields['id_tutor'].queryset = User.objects.filter(groups__in=[Group.objects.get(name='куратор').id])
@@ -109,7 +119,8 @@ class TeamAdmin(ImportExportActionModelAdmin):
 class InternTeamAdmin(admin.ModelAdmin):
     list_display = ('id_team', 'id_intern', 'role')
     search_fields = ('id_team__title', 'id_intern__last_name', 'role__title')
-    list_filter = ('id_team', 'role')
+    list_filter = ('role', )
+    autocomplete_fields = ('id_intern',)
 
     def render_change_form(self, request, context, *args, **kwargs):
         context['adminform'].form.fields['id_intern'].queryset = User.objects.filter(groups__in=[Group.objects.get(name='стажёр').id])
@@ -140,13 +151,13 @@ class EstimationAdmin(admin.ModelAdmin):
     list_display = ('id_appraiser', 'id_stage', 'id_evaluation_criteria', 'id_intern', 'time_voting', 'estimation')
     list_filter = ('time_voting', 'id_evaluation_criteria',)
     search_fields = ('id_appraiser__last_name', 'id_appraiser__first_name', 'id_stage__title', 'id_intern__last_name', 'id_intern__first_name')
-    # readonly_fields = ('id_appraiser', 'id_stage', 'id_evaluation_criteria', 'id_intern', 'time_voting', 'estimation')
+    readonly_fields = ('id_appraiser', 'id_stage', 'id_evaluation_criteria', 'id_intern', 'time_voting', 'estimation')
 
-    # def has_add_permission(self, request, obj=None):
-    #     return False
-    #
-    # def has_change_permission(self, request, obj=None):
-    #     return False
-    #
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
     # def has_delete_permission(self, request, obj=None):
     #     return False
