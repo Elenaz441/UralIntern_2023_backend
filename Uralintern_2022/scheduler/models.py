@@ -76,7 +76,7 @@ class Task(models.Model):
         start_date, final_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date(), \
             datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
         if parent_task:
-            if parent_task.planned_start_date <= start_date < final_date <= parent_task.planned_final_date:
+            if parent_task.planned_start_date <= start_date <= final_date <= parent_task.planned_final_date:
                 self.planned_start_date = start_date
                 self.planned_final_date = final_date
             raise ValueError('Incorrect date terms')

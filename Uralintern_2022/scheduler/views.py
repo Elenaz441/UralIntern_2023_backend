@@ -8,7 +8,42 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.forms import model_to_dict
 from rest_framework import status
+from django.db.models import F
 from datetime import datetime
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_projects(request):
+    if request.user.groups.filter(name='руководитель').exists():
+        projects = Project.objects.filter(id_director=request.user)
+    elif request.user.groups.filter(name='куратор').exists():
+        teams = Team.objects.filter(id_tutor=request.user).select_related('id_project')
+        projects = {team.id_project for team in teams}
+    else:
+        intern_teams = InternTeam.objects.filter(id_intern=request.user).select_related('id_team__id_project').all()
+        projects = {intern_team.id_team.id_project for intern_team in intern_teams}
+    return Response([
+        {'id': project.id, 'title': project.title, 'start_date': project.start_date, 'end_date': project.end_date}
+        for project in projects
+    ])
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_project_info(request):
+    project_id = int(request.query_params.get('project_id'))
+    project = Project.objects.filter(id=project_id).first()
+    if not project:
+        return Response('Not found', status=status.HTTP_404_NOT_FOUND)
+    interns_teams = InternTeam.objects.select_related('id_team__id_project', 'id_team').filter(id_team__id_project=project)
+    interns = interns_teams.annotate(
+            first_name=F('id_intern__first_name'),
+            last_name=F('id_intern__last_name'))\
+        .values('id_intern', 'first_name', 'last_name')
+
+    teams = Team.objects.filter(id_project=project_id).values('id', 'title', 'teg')
+    return Response({'interns': interns, 'teams': teams})
 
 
 # TODO: TESTED
@@ -16,19 +51,16 @@ class TaskList(APIView):
     @permission_classes([IsAuthenticated])
     def get(self, request):
         view_type = request.query_params.get('view_type')
+        project_id = int(request.query_params.get('project_id'))
         if view_type not in {'gantt', 'kanban'}:
-            return Response('Incorrect param for "view_type"', status=status.HTTP_403_FORBIDDEN)
-        if request.user.groups.filter(name='руководитель').exists():
-            projects = Project.objects.filter(id_director=request.user).all()
-        elif request.user.groups.filter(name='куратор').exists():
-            teams = Team.objects.filter(id_tutor=request.user).select_related('id_project')
-            projects = {team.id_project for team in teams}
-        else:
-            intern_team = InternTeam.objects.filter(id_intern=request.user).select_related('id_team').all()
-            projects = [team.id_team.id_project for team in intern_team]
-        context = [{'project_id': project.id,
-                    'title_project': project.title,
-                    'tasks': get_tasks(project.id, view_type)} for project in projects]
+            return Response('Incorrect param for "view_type"', status=status.HTTP_400_BAD_REQUEST)
+        project = Project.objects.filter(id=project_id).first()
+        if not project:
+            return Response('Not found', status=status.HTTP_404_NOT_FOUND)
+        assert project.id == project_id
+        context = {'project_id': project.id,
+                   'title_project': project.title,
+                   'tasks': get_tasks(project.id, view_type)}
         return Response(context)
 
     @permission_classes([IsAuthenticated])
@@ -48,7 +80,7 @@ class TaskList(APIView):
                            deadline=task_data.get('deadline'))
         if parent_task:
             if not (
-                    parent_task.planned_start_date <= task.planned_start_date < task.planned_final_date <= parent_task.planned_final_date):
+                    parent_task.planned_start_date <= task.planned_start_date <= task.planned_final_date <= parent_task.planned_final_date):
                 return Response('Incorrect date terms', status=status.HTTP_400_BAD_REQUEST)
             parent_task.is_on_kanban = False
             parent_task.save()
@@ -233,7 +265,7 @@ def change_date(request, id):
         return Response('Error while parsing dates', status=status.HTTP_400_BAD_REQUEST)
     parent_task = task.parent_id
     if parent_task:
-        if parent_task.planned_start_date <= task.planned_start_date < task.planned_final_date <= parent_task.planned_final_date:
+        if parent_task.planned_start_date <= task.planned_start_date <= task.planned_final_date <= parent_task.planned_final_date:
             task.save()
             return Response(model_to_dict(task))
         return Response('Incorrect date terms', status=status.HTTP_400_BAD_REQUEST)
@@ -294,7 +326,7 @@ def complete_task(request, id):
         responsible.time_spent = request.data.get('time_spent')
         responsible.save()
     except ValidationError:
-        return Response('"time_spent" mist be in "HH:mm:ms" format',status=status.HTTP_400_BAD_REQUEST)
+        return Response('"time_spent" mist be in "HH:mm:ms" format', status=status.HTTP_400_BAD_REQUEST)
     task.status_id = Status.objects.filter(name='COMPLETED').first()
     task.completed_at = datetime.now()
     task.save()
