@@ -123,9 +123,9 @@ class TaskDetailView(APIView):
         task.name = request.data.get('name', task.name)
         task.description = request.data.get('description', task.description)
         try:
-            start_date = datetime.strptime(request.data.get('planned_start_date', task.planned_start_date), "%Y-%m-%d").date()
-            final_date = datetime.strptime(request.data.get('planned_final_date', task.planned_final_date), "%Y-%m-%d").date()
-            deadline = datetime.strptime(request.data.get('deadline', task.deadline), "%Y-%m-%d").date()
+            start_date = datetime.strptime(request.data.get('planned_start_date'), "%Y-%m-%d").date()
+            final_date = datetime.strptime(request.data.get('planned_final_date'), "%Y-%m-%d").date()
+            deadline = datetime.strptime(request.data.get('deadline'), "%Y-%m-%d").date()
         except TypeError as error:
             return Response(error.__str__(), status=status.HTTP_400_BAD_REQUEST)
         parent = task.parent_id
