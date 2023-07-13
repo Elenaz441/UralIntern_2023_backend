@@ -103,10 +103,10 @@ class TaskDetailView(APIView):
         stages = Stage.objects.filter(task_id=task).values('id', 'task_id', 'description', 'is_ready')
         comments = Comment.objects.filter(task_id=task) \
             .select_related('user_id') \
-            .values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name')
+            .values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name', 'message')
         executors = Executor.objects.filter(task_id=task) \
             .select_related('role_id', 'user_id') \
-            .values('id', 'user_id', 'user_id__first_name', 'user_id__last_name', 'role_id__name')
+            .values('id', 'user_id', 'user_id__first_name', 'user_id__last_name', 'role_id__name', 'time_spent')
         return Response({'task': model_to_dict(task),
                          'executors': executors,
                          'stages': stages,
@@ -114,10 +114,10 @@ class TaskDetailView(APIView):
 
     @permission_classes([IsAuthenticated])
     def put(self, request, id):
-        task = Task.objects.filter(id=id).first()
+        task = Task.objects.filter(id=id).select_related('parent_id').first()
         if not task:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        task_executors = Executor.objects.filter(task_id=task, user_id=request.user).select_related('user_id').all()
+        task_executors = Executor.objects.filter(task_id=task).select_related('user_id')
         if not any(executor.user_id == request.user for executor in task_executors):
             return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
         try:
@@ -128,8 +128,9 @@ class TaskDetailView(APIView):
                 planned_final_date=request.data.get('planned_final_date'),
                 deadline=request.data.get('deadline')
             )
-        except ValueError:
-            return Response('Validation error while updating task', status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as error_text:
+            return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
+        task.save()
         return Response(model_to_dict(task))
 
     @permission_classes([IsAuthenticated])
@@ -151,7 +152,7 @@ class TaskDetailView(APIView):
 
 
 # TODO: TESTED
-class CommentDetailView(APIView):
+class CommentListView(APIView):
     @permission_classes([IsAuthenticated])
     def post(self, request):
         task = Task.objects.filter(id=request.data.get('task_id')).first()
@@ -166,9 +167,11 @@ class CommentDetailView(APIView):
         )
         return Response(model_to_dict(comment))
 
+
+class CommentDetailView(APIView):
     @permission_classes([IsAuthenticated])
-    def put(self, request):
-        comment = Comment.objects.filter(id=request.data.get('comment_id')).select_related('user_id').first()
+    def put(self, request, id):
+        comment = Comment.objects.filter(id=id).select_related('user_id').first()
         if not comment:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         if not request.data.get('message'):
@@ -180,8 +183,8 @@ class CommentDetailView(APIView):
         return Response(model_to_dict(comment))
 
     @permission_classes([IsAuthenticated])
-    def delete(self, request):
-        comment = Comment.objects.filter(id=request.data.get('comment_id')).select_related('user_id').first()
+    def delete(self, request, id):
+        comment = Comment.objects.filter(id=id).select_related('user_id').first()
         if not comment:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         if comment.user_id != request.user:
@@ -190,8 +193,7 @@ class CommentDetailView(APIView):
         return Response({'id': request.data.get('comment_id'), 'status': 'deleted'})
 
 
-# TODO: TESTED
-class StageDetailView(APIView):
+class StageListView(APIView):
     @permission_classes([IsAuthenticated])
     def post(self, request):
         task = Task.objects.filter(id=request.data.get('task_id')).first()
@@ -208,9 +210,12 @@ class StageDetailView(APIView):
         )
         return Response(model_to_dict(stage))
 
+
+# TODO: TESTED
+class StageDetailView(APIView):
     @permission_classes([IsAuthenticated])
-    def put(self, request):
-        stage = Stage.objects.filter(id=request.data.get('stage_id')).select_related('task_id').first()
+    def put(self, request, id):
+        stage = Stage.objects.filter(id=id).select_related('task_id').first()
         if not stage:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=stage.task_id).all()
@@ -227,8 +232,8 @@ class StageDetailView(APIView):
         return Response(model_to_dict(stage))
 
     @permission_classes([IsAuthenticated])
-    def delete(self, request):
-        stage = Stage.objects.filter(id=request.data.get('stage_id')).select_related('task_id').first()
+    def delete(self, request, id):
+        stage = Stage.objects.filter(id=id).select_related('task_id').first()
         if not stage:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=stage.task_id).all()
@@ -300,7 +305,7 @@ def change_task_status(request, id):
     executors = Executor.objects.select_related('user_id').filter(task_id=task)
     if not any(request.user == executor.user_id for executor in executors):
         return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
-    if request.data.get('status') not in ['TO WORK', 'IN PROGRESS', 'TESTING', 'CHECKING']:
+    if request.data.get('status') not in ['TO WORK', 'IN PROGRESS', 'TESTING', 'CHECKING', 'COMPLETED']:
         return Response("Bad status", status=status.HTTP_400_BAD_REQUEST)
     _status = Status.objects.filter(name=request.data.get('status')).first()
     task.status_id = _status
@@ -332,3 +337,21 @@ def complete_task(request, id):
     task.save()
     return Response({'id': task.id, 'status_id': task.status_id.id, 'status_name': task.status_id.name,
                      'time_spent': responsible.time_spent})
+
+
+@permission_classes([IsAuthenticated])
+@api_view(['PUT'])
+def save_timer(request, id):
+    task = Task.objects.filter(id=id).first()
+    if not task:
+        return Response("Not Found", status=status.HTTP_404_NOT_FOUND)
+    responsible = Executor.objects.filter(user_id=request.user, task_id=task).first()
+    if not responsible:
+        return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
+    try:
+        responsible.time_spent = request.data.get('time_spent')
+        responsible.save()
+    except ValidationError:
+        return Response('"time_spent" mist be in "HH:mm:ms" format', status=status.HTTP_400_BAD_REQUEST)
+    return Response(model_to_dict(responsible))
+

@@ -69,21 +69,28 @@ class Task(models.Model):
     updated_at = models.DateTimeField(verbose_name='Время обновления', auto_now=True)
 
     def update(self, **kwargs):
-        self.name = kwargs.get('name', self.name)
-        self.description = kwargs.get('description', self.description)
-        self.deadline = datetime.strptime(kwargs.get('deadline', self.deadline), "%Y-%m-%d").date()
+        self.name = kwargs.get('name')
+        self.description = kwargs.get('description')
         parent_task = self.parent_id
-        start_date, final_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date(), \
-            datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
+        try:
+            start_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date()
+            final_date = datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
+            deadline = datetime.strptime(kwargs.get('deadline'), "%Y-%m-%d").date()
+        except TypeError:
+            return self
         if parent_task:
-            if parent_task.planned_start_date <= start_date <= final_date <= parent_task.planned_final_date:
+            if parent_task.planned_start_date <= start_date <= final_date <= parent_task.planned_final_date and final_date <= deadline:
                 self.planned_start_date = start_date
                 self.planned_final_date = final_date
+                self.deadline = deadline
             raise ValueError('Incorrect date terms')
         else:
-            self.planned_start_date = start_date
-            self.planned_final_date = final_date
-        self.save()
+            if start_date <= final_date <= deadline:
+                self.planned_start_date = start_date
+                self.planned_final_date = final_date
+                self.deadline = deadline
+            else:
+                raise ValueError('start_date <= final_date <= deadline')
         return self
 
     def __str__(self):
@@ -104,7 +111,7 @@ class Executor(models.Model):
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', to_field='id')
     role_id = models.ForeignKey(Role, on_delete=models.CASCADE, db_column='role_id', to_field='id')
     time_spent = models.CharField(verbose_name='Время выполнения задачи', null=True, blank=True, max_length=20,
-                                  validators=[RegexValidator(regex=':[0-9][0-9]:[0-5][0-9]:[0-5][0-9]$')])
+                                  validators=[RegexValidator(regex='^[0-9][0-9]:[0-5][0-9]:[0-5][0-9]$')])
 
     class Meta:
         db_table = 'executors'

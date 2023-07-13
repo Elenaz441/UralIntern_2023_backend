@@ -1,3 +1,5 @@
+from django.db.models import F
+
 from uralapi.models import User
 from .models import Task, Executor, Role, Status, Stage
 from datetime import datetime
@@ -10,12 +12,16 @@ GANTT_VALUES_LIST = [
 
 KANBAN_VALUES_LIST = [
     'task_id',
-    'task_id__project_id',
-    'task_id__team_id__teg',
-    'task_id__name',
-    'task_id__status_id',
-    'task_id__status_id__name',
-    'task_id__planned_final_date'
+    'project_id',
+    'team__teg',
+    'name',
+    'status_id',
+    'status_id__name',
+    'planned_final_date',
+    'user_id',
+    'user__first_name',
+    'user__last_name'
+
 ]
 DATE_FORMAT = "%Y-%m-%d"
 
@@ -41,10 +47,14 @@ def gant_recursive_tasks(initial_tasks_list, parent_id, task_list):
 
 
 def get_kanban_tasks(project_id):
-    tasks = Executor.objects.select_related('task_id', 'role_id') \
+    tasks = Executor.objects.select_related('task_id', 'role_id', 'user_id') \
         .filter(task_id__is_on_kanban=True,
                 task_id__project_id=project_id,
-                role_id=Role.objects.get(name='RESPONSIBLE')) \
+                role_id=Role.objects.get(name='AUTHOR')) \
+        .annotate(project_id=F('task_id__project_id'), team__teg=F('task_id__team_id__teg'), name=F('task_id__name'),
+                  status_id=F('task_id__status_id'), status_id__name=F('task_id__status_id__name'),
+                  planned_final_date=F('task_id__planned_final_date'),
+                  user=F('user_id'), user__first_name=F('user_id__first_name'), user__last_name=F('user_id__last_name')) \
         .values(*KANBAN_VALUES_LIST)
     return tasks
 
