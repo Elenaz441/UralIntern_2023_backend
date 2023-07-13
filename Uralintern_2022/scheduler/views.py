@@ -152,7 +152,7 @@ class TaskDetailView(APIView):
 
 
 # TODO: TESTED
-class CommentDetailView(APIView):
+class CommentListView(APIView):
     @permission_classes([IsAuthenticated])
     def post(self, request):
         task = Task.objects.filter(id=request.data.get('task_id')).first()
@@ -167,9 +167,11 @@ class CommentDetailView(APIView):
         )
         return Response(model_to_dict(comment))
 
+
+class CommentDetailView(APIView):
     @permission_classes([IsAuthenticated])
-    def put(self, request):
-        comment = Comment.objects.filter(id=request.data.get('comment_id')).select_related('user_id').first()
+    def put(self, request, id):
+        comment = Comment.objects.filter(id=id).select_related('user_id').first()
         if not comment:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         if not request.data.get('message'):
@@ -181,8 +183,8 @@ class CommentDetailView(APIView):
         return Response(model_to_dict(comment))
 
     @permission_classes([IsAuthenticated])
-    def delete(self, request):
-        comment = Comment.objects.filter(id=request.data.get('comment_id')).select_related('user_id').first()
+    def delete(self, request, id):
+        comment = Comment.objects.filter(id=id).select_related('user_id').first()
         if not comment:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         if comment.user_id != request.user:
@@ -191,8 +193,7 @@ class CommentDetailView(APIView):
         return Response({'id': request.data.get('comment_id'), 'status': 'deleted'})
 
 
-# TODO: TESTED
-class StageDetailView(APIView):
+class StageListView(APIView):
     @permission_classes([IsAuthenticated])
     def post(self, request):
         task = Task.objects.filter(id=request.data.get('task_id')).first()
@@ -209,9 +210,12 @@ class StageDetailView(APIView):
         )
         return Response(model_to_dict(stage))
 
+
+# TODO: TESTED
+class StageDetailView(APIView):
     @permission_classes([IsAuthenticated])
-    def put(self, request):
-        stage = Stage.objects.filter(id=request.data.get('stage_id')).select_related('task_id').first()
+    def put(self, request, id):
+        stage = Stage.objects.filter(id=id).select_related('task_id').first()
         if not stage:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=stage.task_id).all()
@@ -228,8 +232,8 @@ class StageDetailView(APIView):
         return Response(model_to_dict(stage))
 
     @permission_classes([IsAuthenticated])
-    def delete(self, request):
-        stage = Stage.objects.filter(id=request.data.get('stage_id')).select_related('task_id').first()
+    def delete(self, request, id):
+        stage = Stage.objects.filter(id=id).select_related('task_id').first()
         if not stage:
             return Response('Not found', status=status.HTTP_404_NOT_FOUND)
         executors = Executor.objects.filter(task_id=stage.task_id).all()
