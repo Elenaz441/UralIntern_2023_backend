@@ -130,6 +130,7 @@ class TaskDetailView(APIView):
             )
         except ValueError as error_text:
             return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
+        task.save()
         return Response(model_to_dict(task))
 
     @permission_classes([IsAuthenticated])
