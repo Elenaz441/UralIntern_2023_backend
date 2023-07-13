@@ -122,11 +122,11 @@ class TaskDetailView(APIView):
             return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
         try:
             task = task.update(
-                name=request.data.get('name', task.name),
-                description=request.data.get('description', task.description),
-                planned_start_date=request.data.get('planned_start_date', task.planned_start_date),
-                planned_final_date=request.data.get('planned_final_date', task.planned_final_date),
-                deadline=request.data.get('deadline', task.deadline)
+                name=request.data.get('name'),
+                description=request.data.get('description'),
+                planned_start_date=request.data.get('planned_start_date'),
+                planned_final_date=request.data.get('planned_final_date'),
+                deadline=request.data.get('deadline')
             )
         except ValueError as error_text:
             return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
