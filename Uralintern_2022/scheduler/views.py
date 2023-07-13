@@ -305,7 +305,7 @@ def change_task_status(request, id):
     executors = Executor.objects.select_related('user_id').filter(task_id=task)
     if not any(request.user == executor.user_id for executor in executors):
         return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
-    if request.data.get('status') not in ['TO WORK', 'IN PROGRESS', 'TESTING', 'CHECKING']:
+    if request.data.get('status') not in ['TO WORK', 'IN PROGRESS', 'TESTING', 'CHECKING', 'COMPLETED']:
         return Response("Bad status", status=status.HTTP_400_BAD_REQUEST)
     _status = Status.objects.filter(name=request.data.get('status')).first()
     task.status_id = _status
