@@ -69,20 +69,31 @@ class Task(models.Model):
     updated_at = models.DateTimeField(verbose_name='Время обновления', auto_now=True)
 
     def update(self, **kwargs):
-        self.name = kwargs.get('name', self.name)
-        self.description = kwargs.get('description', self.description)
-        self.deadline = datetime.strptime(kwargs.get('deadline', self.deadline), "%Y-%m-%d").date()
+        if kwargs.get('name'):
+            self.name = kwargs.get('name')
+        if kwargs.get('description'):
+            self.description = kwargs.get('description')
         parent_task = self.parent_id
-        start_date, final_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date(), \
-            datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
+        try:
+            start_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date()
+            final_date = datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
+            deadline = datetime.strptime(kwargs.get('deadline'), "%Y-%m-%d").date()
+        except TypeError:
+            self.save()
+            return self
         if parent_task:
-            if parent_task.planned_start_date <= start_date <= final_date <= parent_task.planned_final_date:
+            if parent_task.planned_start_date <= start_date <= final_date <= parent_task.planned_final_date and final_date <= deadline:
                 self.planned_start_date = start_date
                 self.planned_final_date = final_date
+                self.deadline = deadline
             raise ValueError('Incorrect date terms')
         else:
-            self.planned_start_date = start_date
-            self.planned_final_date = final_date
+            if start_date <= final_date <= deadline:
+                self.planned_start_date = start_date
+                self.planned_final_date = final_date
+                self.deadline = deadline
+            else:
+                raise ValueError('start_date <= final_date <= deadline')
         self.save()
         return self
 

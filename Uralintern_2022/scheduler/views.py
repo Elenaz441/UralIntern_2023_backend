@@ -106,7 +106,7 @@ class TaskDetailView(APIView):
             .values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name', 'message')
         executors = Executor.objects.filter(task_id=task) \
             .select_related('role_id', 'user_id') \
-            .values('id', 'user_id', 'user_id__first_name', 'user_id__last_name', 'role_id__name')
+            .values('id', 'user_id', 'user_id__first_name', 'user_id__last_name', 'role_id__name', 'time_spent')
         return Response({'task': model_to_dict(task),
                          'executors': executors,
                          'stages': stages,
@@ -128,8 +128,8 @@ class TaskDetailView(APIView):
                 planned_final_date=request.data.get('planned_final_date'),
                 deadline=request.data.get('deadline')
             )
-        except ValueError:
-            return Response('Validation error while updating task', status=status.HTTP_400_BAD_REQUEST)
+        except ValueError as error_text:
+            return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
         return Response(model_to_dict(task))
 
     @permission_classes([IsAuthenticated])
