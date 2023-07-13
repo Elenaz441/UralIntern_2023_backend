@@ -114,23 +114,46 @@ class TaskDetailView(APIView):
 
     @permission_classes([IsAuthenticated])
     def put(self, request, id):
-        task = Task.objects.filter(id=id).first()
+        task = Task.objects.filter(id=id).select_related('parent_id').first()
         if not task:
             return Response(status=status.HTTP_404_NOT_FOUND)
         task_executors = Executor.objects.filter(task_id=task).select_related('user_id')
         if not any(executor.user_id == request.user for executor in task_executors):
             return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
+        task.name = request.data.get('name', task.name)
+        task.description = request.data.get('description', task.description)
         try:
-            task.update(
-                name=request.data.get('name', task.name),
-                description=request.data.get('description', task.description),
-                planned_start_date=request.data.get('planned_start_date', task.planned_start_date),
-                planned_final_date=request.data.get('planned_final_date', task.planned_final_date),
-                deadline=request.data.get('deadline', task.deadline)
-            )
-        except ValueError as error_text:
-            return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
+            start_date = datetime.strptime(request.data.get('planned_start_date', task.planned_start_date), "%Y-%m-%d").date()
+            final_date = datetime.strptime(request.data.get('planned_final_date', task.planned_final_date), "%Y-%m-%d").date()
+            deadline = datetime.strptime(request.data.get('deadline', task.deadline), "%Y-%m-%d").date()
+        except TypeError as error:
+            return Response(error.__str__(), status=status.HTTP_400_BAD_REQUEST)
+        parent = task.parent_id
+        if parent:
+            if parent.planned_start_date <= start_date <= final_date <= parent.planned_final_date and final_date <= deadline:
+                task.planned_start_date = start_date
+                task.planned_final_date = final_date
+                task.deadline = deadline
+            raise ValueError('Incorrect date terms')
+        else:
+            if start_date <= final_date <= deadline:
+                task.planned_start_date = start_date
+                task.planned_final_date = final_date
+                task.deadline = deadline
+            else:
+                raise ValueError('start_date <= final_date <= deadline')
         task.save()
+
+        # try:
+        #     task = task.update(
+        #         name=request.data.get('name', task.name),
+        #         description=request.data.get('description', task.description),
+        #         planned_start_date=request.data.get('planned_start_date', task.planned_start_date),
+        #         planned_final_date=request.data.get('planned_final_date', task.planned_final_date),
+        #         deadline=request.data.get('deadline', task.deadline)
+        #     )
+        # except ValueError as error_text:
+        #     return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
         return Response(model_to_dict(task))
 
     @permission_classes([IsAuthenticated])

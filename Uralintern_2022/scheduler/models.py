@@ -69,10 +69,8 @@ class Task(models.Model):
     updated_at = models.DateTimeField(verbose_name='Время обновления', auto_now=True)
 
     def update(self, **kwargs):
-        if kwargs.get('name'):
-            self.name = kwargs.get('name')
-        if kwargs.get('description'):
-            self.description = kwargs.get('description')
+        self.name = kwargs.get('name')
+        self.description = kwargs.get('description')
         parent_task = self.parent_id
         try:
             start_date = datetime.strptime(kwargs.get('planned_start_date'), "%Y-%m-%d").date()
