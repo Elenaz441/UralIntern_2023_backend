@@ -13,7 +13,7 @@ from django.apps import apps
 admin.site.unregister(ResetPasswordToken)
 admin.site.unregister(BlacklistedToken)
 admin.site.unregister(OutstandingToken)
-apps.get_model('auth.Group')._meta.app_label = 'uralapi'
+# apps.get_model('auth.Group')._meta.app_label = 'uralapi'
 
 
 class UserResource(resources.ModelResource):

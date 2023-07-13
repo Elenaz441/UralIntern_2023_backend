@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/v1/stage', StageDetailView.as_view()),
     path('api/v1/task/<int:id>/is_on_kanban', change_kanban_view),
     path('api/v1/user_projects', get_user_projects),
-    path('api/v1/project_interns', get_project_info)
+    path('api/v1/project_interns', get_project_info),
+    path('api/v1/task/<int:id>/save_timer', save_timer)
 ]
 

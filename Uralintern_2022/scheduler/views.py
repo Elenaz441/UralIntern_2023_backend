@@ -332,3 +332,21 @@ def complete_task(request, id):
     task.save()
     return Response({'id': task.id, 'status_id': task.status_id.id, 'status_name': task.status_id.name,
                      'time_spent': responsible.time_spent})
+
+
+@permission_classes([IsAuthenticated])
+@api_view(['PUT'])
+def save_timer(request, id):
+    task = Task.objects.filter(id=id).first()
+    if not task:
+        return Response("Not Found", status=status.HTTP_404_NOT_FOUND)
+    responsible = Executor.objects.filter(user_id=request.user, task_id=task).first()
+    if not responsible:
+        return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
+    try:
+        responsible.time_spent = request.data.get('time_spent')
+        responsible.save()
+    except ValidationError:
+        return Response('"time_spent" mist be in "HH:mm:ms" format', status=status.HTTP_400_BAD_REQUEST)
+    return Response(model_to_dict(responsible))
+
