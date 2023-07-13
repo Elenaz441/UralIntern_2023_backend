@@ -117,7 +117,7 @@ class TaskDetailView(APIView):
         task = Task.objects.filter(id=id).first()
         if not task:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        task_executors = Executor.objects.filter(task_id=task, user_id=request.user).select_related('user_id').all()
+        task_executors = Executor.objects.filter(task_id=task).select_related('user_id')
         if not any(executor.user_id == request.user for executor in task_executors):
             return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
         try:
