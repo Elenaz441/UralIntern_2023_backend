@@ -121,7 +121,7 @@ class TaskDetailView(APIView):
         if not any(executor.user_id == request.user for executor in task_executors):
             return Response('Must be task executor', status=status.HTTP_403_FORBIDDEN)
         try:
-            task = task.update(
+            task.update(
                 name=request.data.get('name'),
                 description=request.data.get('description'),
                 planned_start_date=request.data.get('planned_start_date'),
@@ -130,6 +130,7 @@ class TaskDetailView(APIView):
             )
         except ValueError as error_text:
             return Response(error_text.__str__(), status=status.HTTP_400_BAD_REQUEST)
+        task.save()
         return Response(model_to_dict(task))
 
     @permission_classes([IsAuthenticated])

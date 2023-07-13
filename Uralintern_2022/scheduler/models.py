@@ -79,7 +79,6 @@ class Task(models.Model):
             final_date = datetime.strptime(kwargs.get('planned_final_date'), "%Y-%m-%d").date()
             deadline = datetime.strptime(kwargs.get('deadline'), "%Y-%m-%d").date()
         except TypeError:
-            self.save()
             return self
         if parent_task:
             if parent_task.planned_start_date <= start_date <= final_date <= parent_task.planned_final_date and final_date <= deadline:
@@ -94,7 +93,6 @@ class Task(models.Model):
                 self.deadline = deadline
             else:
                 raise ValueError('start_date <= final_date <= deadline')
-        self.save()
         return self
 
     def __str__(self):
