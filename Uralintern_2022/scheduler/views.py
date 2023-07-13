@@ -103,7 +103,7 @@ class TaskDetailView(APIView):
         stages = Stage.objects.filter(task_id=task).values('id', 'task_id', 'description', 'is_ready')
         comments = Comment.objects.filter(task_id=task) \
             .select_related('user_id') \
-            .values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name')
+            .values('id', 'task_id', 'user_id_id', 'user_id__first_name', 'user_id__last_name', 'message')
         executors = Executor.objects.filter(task_id=task) \
             .select_related('role_id', 'user_id') \
             .values('id', 'user_id', 'user_id__first_name', 'user_id__last_name', 'role_id__name')
