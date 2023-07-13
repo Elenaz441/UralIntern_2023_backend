@@ -2,18 +2,24 @@ from django.contrib import admin
 
 from .forms import *
 from .models import *
-from django.contrib.auth.models import Group
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin, Group
 from import_export import resources, fields, widgets
 from import_export.admin import ImportExportActionModelAdmin
 from django_rest_passwordreset.admin import ResetPasswordToken
 from rest_framework_simplejwt.token_blacklist.admin import BlacklistedToken, OutstandingToken
-from django.apps import apps
+
 
 admin.site.unregister(ResetPasswordToken)
 admin.site.unregister(BlacklistedToken)
 admin.site.unregister(OutstandingToken)
-apps.get_model('auth.Group')._meta.app_label = 'uralapi'
+admin.site.unregister(Group)
+
+
+@admin.register(MyGroup)
+class MyGroupAdmin(admin.ModelAdmin):
+    search_fields = ('name', )
+    list_display = ('name', )
+    filter_horizontal = ['permissions', ]
 
 
 class UserResource(resources.ModelResource):

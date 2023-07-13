@@ -16,6 +16,12 @@ from django_rest_passwordreset.signals import reset_password_token_created
 from django.core.mail import send_mail
 
 
+class MyGroup(Group):
+    class Meta:
+        proxy = True
+        verbose_name = 'Группа'
+        verbose_name_plural = 'Группы'
+
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields) -> 'User':
