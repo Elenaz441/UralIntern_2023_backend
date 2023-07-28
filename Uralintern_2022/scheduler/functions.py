@@ -21,7 +21,7 @@ KANBAN_VALUES_LIST = [
     'user_id',
     'user__first_name',
     'user__last_name'
-
+    'parent_id__name'
 ]
 DATE_FORMAT = "%Y-%m-%d"
 
@@ -47,12 +47,13 @@ def gant_recursive_tasks(initial_tasks_list, parent_id, task_list):
 
 
 def get_kanban_tasks(project_id):
-    tasks = Executor.objects.select_related('task_id', 'role_id', 'user_id') \
+    tasks = Executor.objects.select_related('task_id', 'role_id', 'user_id', 'task_id__parent_id') \
         .filter(task_id__is_on_kanban=True,
                 task_id__project_id=project_id,
                 role_id=Role.objects.get(name='AUTHOR')) \
         .annotate(project_id=F('task_id__project_id'), team__teg=F('task_id__team_id__teg'), name=F('task_id__name'),
                   status_id=F('task_id__status_id'), status_id__name=F('task_id__status_id__name'),
+                  parent_id__name=F('task_id__parent_id__name'),
                   planned_final_date=F('task_id__planned_final_date'),
                   user=F('user_id'), user__first_name=F('user_id__first_name'), user__last_name=F('user_id__last_name')) \
         .values(*KANBAN_VALUES_LIST)
