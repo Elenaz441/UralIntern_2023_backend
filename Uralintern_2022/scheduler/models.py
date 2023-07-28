@@ -110,8 +110,7 @@ class Executor(models.Model):
     task_id = models.ForeignKey(Task, on_delete=models.CASCADE, db_column='task_id', to_field='id')
     user_id = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', to_field='id')
     role_id = models.ForeignKey(Role, on_delete=models.CASCADE, db_column='role_id', to_field='id')
-    time_spent = models.CharField(verbose_name='Время выполнения задачи', null=True, blank=True, max_length=20,
-                                  validators=[RegexValidator(regex='^[0-9][0-9]:[0-5][0-9]:[0-5][0-9]$')])
+    time_spent = models.BigIntegerField(verbose_name='Время выполнения задачи в секундах', null=True, blank=True)
 
     class Meta:
         db_table = 'executors'

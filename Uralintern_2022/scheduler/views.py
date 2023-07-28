@@ -36,10 +36,11 @@ def get_project_info(request):
     project = Project.objects.filter(id=project_id).first()
     if not project:
         return Response('Not found', status=status.HTTP_404_NOT_FOUND)
-    interns_teams = InternTeam.objects.select_related('id_team__id_project', 'id_team').filter(id_team__id_project=project)
+    interns_teams = InternTeam.objects.select_related('id_team__id_project', 'id_team').filter(
+        id_team__id_project=project)
     interns = interns_teams.annotate(
-            first_name=F('id_intern__first_name'),
-            last_name=F('id_intern__last_name'))\
+        first_name=F('id_intern__first_name'),
+        last_name=F('id_intern__last_name')) \
         .values('id_intern', 'first_name', 'last_name')
 
     teams = Team.objects.filter(id_project=project_id).values('id', 'title', 'teg')
@@ -355,3 +356,22 @@ def save_timer(request, id):
         return Response('"time_spent" mist be in "HH:mm:ms" format', status=status.HTTP_400_BAD_REQUEST)
     return Response(model_to_dict(responsible))
 
+
+@permission_classes([IsAuthenticated])
+@api_view(['DELETE'])
+def delete_completed_task(request):
+    project_id = int(request.query_params.get('project_id'))
+    user = request.user
+    tasks = Executor.objects.select_related('task_id', 'user_id') \
+        .filter(user_id=user,
+                role_id__name='AUTHOR',
+                task_id__status_id__name='COMPLETED',
+                task_id__project_id=project_id
+                )
+    if not tasks:
+        return Response('Nothing to delete')
+    context = []
+    for el in tasks:
+        context.append({'id': el.task_id.id, 'name': el.task_id.name})
+        el.task_id.delete()
+    return Response(context)
