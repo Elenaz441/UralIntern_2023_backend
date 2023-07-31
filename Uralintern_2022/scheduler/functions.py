@@ -18,9 +18,9 @@ KANBAN_VALUES_LIST = [
     'status_id',
     'status_id__name',
     'planned_final_date',
-    'user_id',
-    'user__first_name',
-    'user__last_name'
+    'id_user',
+    'user_id__last_name',
+    'user_id__first_name',
     'parent_id__name'
 ]
 DATE_FORMAT = "%Y-%m-%d"
@@ -55,7 +55,8 @@ def get_kanban_tasks(project_id):
                   status_id=F('task_id__status_id'), status_id__name=F('task_id__status_id__name'),
                   parent_id__name=F('task_id__parent_id__name'),
                   planned_final_date=F('task_id__planned_final_date'),
-                  user=F('user_id'), user__first_name=F('user_id__first_name'), user__last_name=F('user_id__last_name')) \
+                  id_user=F('user_id_id'),
+                  ) \
         .values(*KANBAN_VALUES_LIST)
     return tasks
 
