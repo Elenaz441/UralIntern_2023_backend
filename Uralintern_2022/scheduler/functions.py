@@ -84,7 +84,7 @@ def create_executors(**kwargs) -> list:
             Executor.objects.create(
                 task_id=kwargs.get('task_id'),
                 user_id=User.objects.get(id=responsible),
-                role_id=Role.objects.get(name='RESPONSIBLE')) for responsible in set(kwargs.get('responsible_users'))]
+                role_id=Role.objects.get(name='RESPONSIBLE')) for responsible in set(kwargs.get('responsible_users')) if responsible]
     else:
         responsible_users = [
             Executor.objects.create(
