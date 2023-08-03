@@ -83,7 +83,8 @@ class Task(models.Model):
                 self.planned_start_date = start_date
                 self.planned_final_date = final_date
                 self.deadline = deadline
-            raise ValueError('Incorrect date terms')
+            else:
+                raise ValueError('Incorrect date terms')
         else:
             if start_date <= final_date <= deadline:
                 self.planned_start_date = start_date
