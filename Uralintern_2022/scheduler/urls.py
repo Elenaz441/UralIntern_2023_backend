@@ -4,6 +4,7 @@ from .views import *
 
 urlpatterns = [
     path('api/v1/tasks', TaskList.as_view()),
+    path('api/v1/tasks/delete_completed', delete_completed_task),
     path('api/v1/task/<int:id>', TaskDetailView.as_view()),
     path('api/v1/task/<int:id>/dates', change_date),
     path('api/v1/task/<int:id>/status', change_task_status),
