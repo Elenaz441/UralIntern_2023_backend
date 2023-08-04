@@ -68,11 +68,7 @@ class InternTeamSerializer(serializers.ModelSerializer):
 class EvaluationCriteriaSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     title = serializers.CharField()
-    description_minus_one = serializers.CharField()
-    description_zero = serializers.CharField()
-    description_one = serializers.CharField()
-    description_two = serializers.CharField()
-    description_three = serializers.CharField()
+    description = serializers.CharField()
 
 
 class StageSerializer(serializers.ModelSerializer):
